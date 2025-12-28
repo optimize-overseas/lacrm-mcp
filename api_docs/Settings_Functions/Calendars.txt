@@ -1,0 +1,45 @@
+# Less Annoying CRM API Documentation - Calendars
+
+## Overview
+Calendars contain events and contacts. A user has a single primary calendar, and may have additional calendars.
+
+---
+
+## GetCalendars Function
+
+**Function Name:** `GetCalendars`
+
+**Description:** Returns all calendars associated with a user's account.
+
+**Parameters:** This function accepts no parameters.
+
+**Response Format:** Returns an array of calendar objects.
+
+**Sample Response Structure:**
+```json
+[
+  {
+    "CalendarId": "4073198141757591167771405183425",
+    "Name": "",
+    "UserId": "4073198141757591167771404960428",
+    "IsPrimary": false,
+    "Visibility": ""
+  },
+  {...},
+  {...}
+]
+```
+
+**Response Fields:**
+- `CalendarId` (Uid): Unique identifier for the calendar
+- `Name` (Text): Calendar display name
+- `UserId` (Uid): ID of the calendar's owner
+- `IsPrimary` (Bool): Boolean indicating if this is the user's primary calendar
+- `Visibility` (Text): Permission/visibility settings for the calendar
+
+---
+
+## Usage Notes
+- Each user has one primary calendar
+- Additional calendars can be created for organization
+- Calendar IDs are used when creating events to specify target calendar

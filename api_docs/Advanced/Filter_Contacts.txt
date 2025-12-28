@@ -1,0 +1,123 @@
+# Less Annoying CRM API Documentation - Advanced Search Filters (Contacts)
+
+## Overview
+This documentation covers advanced filtering capabilities for the Less Annoying CRM API, specifically for the `GetContacts` function. Filters allow you to narrow down contact search results based on specific criteria.
+
+## Filter Object Structure
+Each filter consists of three properties:
+- **Name**: The field to filter on
+- **Operation**: The type of comparison to perform
+- **Value**: The criteria to match against
+
+---
+
+## General Filters Available
+
+### Group Filters
+- **Name:** `Group`
+- **Operations:** `IsNotInAnyGroup`, `IsInGroupList`, `IsNotInGroupList`
+- **Value Types:** Null or Array of Uids (group IDs)
+
+---
+
+### Name Fields
+Available for: Full name, First name, Middle name, Last name
+
+**Operations:**
+- `Contains` - Text contains the value
+- `DoesNotContain` - Text does not contain the value
+- `IsExactly` - Exact match
+- `IsNot` - Not an exact match
+- `IsEmpty` - Field has no value
+- `IsNotEmpty` - Field has a value
+
+**Value Types:** Text or Null
+
+---
+
+### Company Information
+**Company Name:**
+- Operations: `Contains`, `DoesNotContain`, `IsExactly`, `IsNot`, `IsEmpty`, `IsNotEmpty`
+- Value Types: Text or Null
+
+**Company Uid:**
+- Operation: `IsExactly`
+- Value Type: Uid
+- Purpose: Filters contacts by employer company ID
+
+---
+
+### Contact Details
+
+**Email, Phone, Website:**
+- Operations: `Contains`, `DoesNotContain`, `IsExactly`, `IsEmpty`, `IsNotEmpty`
+- Value Types: Text or Null
+
+**Address Fields** (Street, City, State, Zip, Country):
+- Same text-based operations as above
+
+**Salutation, Suffix, Job Title, Background Info:**
+- Text operations with empty/not empty checks
+
+---
+
+### Date-Based Filters
+
+**DateEntered, DateUpdated:**
+- Operations: `IsExactly`, `IsBetween`, `IsBefore`, `IsAfter`
+- Value Types: Date values
+
+**Birthday:**
+- Operations: Same date operations plus `IsEmpty`/`IsNotEmpty` checks
+
+**Age:**
+- Operations: `IsBetween`, `IsExactly`, `IsGreaterThan`, `IsLessThan`
+- Value Types: Numeric or text values
+
+---
+
+## Attached Items Filters
+
+### Tasks and Events Filter
+- **Name:** `Cal`
+- **Operations:** `HasNoAttachedItem`, `HasAttachedItem`
+- **Parameters:**
+  - `Status`: Pending or Completed
+  - `Type`: Task, Event, or Both
+  - `IncludeOverdue`: Boolean
+
+### Pipeline Items (Leads) Filter
+- **Name:** `Pipeline`
+- **Operations:** `HasNoAttachedItem`, `HasAttachedItem`
+- **Parameters:**
+  - `Status`: Active, Closed, or Both
+  - `PipelineId`: Uid
+
+---
+
+## Example Usage
+
+```json
+{
+  "AdvancedFilters": [
+    {
+      "Name": "First name",
+      "Operation": "Contains",
+      "Value": "John"
+    },
+    {
+      "Name": "Group",
+      "Operation": "IsInGroupList",
+      "Value": ["group-uid-1", "group-uid-2"]
+    }
+  ]
+}
+```
+
+---
+
+## Important Notes
+- Because fields can be customized, the available filters are different on every account
+- Users must log in to the documentation to see account-specific filter options
+- Custom fields can also be used as filters
+- Multiple filters can be combined in a single query

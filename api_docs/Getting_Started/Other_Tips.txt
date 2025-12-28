@@ -1,0 +1,49 @@
+# Less Annoying CRM API Documentation - Other Tips
+
+## Overview
+This page documents best practices and important concepts for working with the Less Annoying CRM API, specifically focusing on field editing, contact/company relationships, and webhooks.
+
+## Editing Only Certain Fields
+
+When using edit functions like `EditContact` or `EditTask`, developers have flexibility in what they modify:
+
+### Selective Updates
+- Only include fields you want to change
+- Omitted fields remain unchanged
+
+### Critical Distinction
+There's a meaningful difference between excluding a field versus passing `null`:
+- **Omitted field** = preserve existing value
+- **`null` value** = clear/blank the field
+
+### Implication
+The API respects granular control, allowing updates without affecting unmodified data.
+
+## Contacts and Companies
+
+The system manages contact-company relationships through the company name field.
+
+### Creation Logic for New Contacts
+
+1. If a company with the specified name exists, the contact links to that company
+2. If no matching company exists, the system creates one automatically
+3. Duplicate company names are prevented in the CRM
+
+### Permission-Based Isolation
+These linking rules apply only within user permission boundaries. Multiple users can independently create companies with identical names if they lack visibility into each other's data.
+
+## Webhooks
+
+Webhooks enable proactive notifications when users perform actions within the application.
+
+### Key Features
+- Real-time notifications
+- Event-driven architecture
+- Customizable triggers
+
+### More Information
+Detailed webhook documentation is available in the Advanced section under "Using webhooks."
+
+## Navigation
+- Previous: Debugging
+- Next: Tutorials

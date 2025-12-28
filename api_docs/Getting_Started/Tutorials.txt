@@ -1,0 +1,195 @@
+# Less Annoying CRM API Documentation - Tutorials
+
+## Overview
+This page provides practical tutorials for common CRM operations using PHP to interact with the API.
+
+## Core Function: API Caller
+
+All examples depend on this foundational function:
+
+```php
+function CallLacrmApi(string $Function, array $Parameters=array()) {
+    $CurlHandle = curl_init("https://api.lessannoyingcrm.com/v2/");
+    $Headers = array(
+        "Content-Type: application/json",
+        "Authorization: YOUR_API_KEY_HERE"
+    );
+    $Body = array(
+        "Function" => $Function,
+        "Parameters" => $Parameters
+    );
+
+    curl_setopt($CurlHandle, CURLOPT_POSTFIELDS, json_encode($Body));
+    curl_setopt($CurlHandle, CURLOPT_HTTPHEADER, $Headers);
+    curl_setopt($CurlHandle, CURLOPT_RETURNTRANSFER, true);
+
+    $CurlResult = curl_exec($CurlHandle);
+    $ReturnValue = false;
+    if (curl_errno($CurlHandle)) {
+        error_log(curl_error($CurlHandle));
+    } else {
+        $ResultObject = json_decode($CurlResult, true);
+        $HttpCode = curl_getinfo($CurlHandle, CURLINFO_HTTP_CODE);
+        if ($HttpCode === 400) {
+            error_log("Error $ResultObject[ErrorCode]: $ResultObject[ErrorDescription]");
+        } else {
+            $ReturnValue = $ResultObject;
+        }
+    }
+
+    curl_close($CurlHandle);
+    return $ReturnValue;
+}
+```
+
+### Key Details
+- Endpoint: `https://api.lessannoyingcrm.com/v2/`
+- Authentication: API key in Authorization header
+- Content-Type: `application/json`
+
+---
+
+## Tutorial 1: Adding Contacts and Companies
+
+### Purpose
+Create a company record and associate a contact with it.
+
+### Important Constraint
+Duplicate company names are not permitted in the system.
+
+### Implementation
+
+```php
+// Retrieve current user ID
+$UserResults = CallLacrmApi("GetUser");
+$UserId = $UserResults["UserId"];
+
+// Create company record
+$CompanyName = "Less Annoying CRM";
+CallLacrmApi("CreateContact", array(
+    "IsCompany" => true,
+    "AssignedTo" => $UserId,
+    "Company Name" => $CompanyName
+));
+
+// Create individual contact linked to company
+CallLacrmApi("CreateContact", array(
+    "IsCompany" => false,
+    "AssignedTo" => $UserId,
+    "Name" => "Test Contact",
+    "Company Name" => $CompanyName
+));
+```
+
+### Method
+Contact creation with matching company name field establishes the relationship.
+
+---
+
+## Tutorial 2: Building a Simple Web Form
+
+### Purpose
+Collect visitor information and automatically create a CRM contact with attached notes.
+
+```php
+if ($_SERVER["REQUEST_METHOD"] === "GET"){
+    echo "
+        Please leave your contact info, and someone will get back to you shortly.
+        <form action="" method="post">
+            <label for="Name">Name</label>
+            <input type="text" name="Name" id="Name" required>
+            <br/>
+            <label for="Email">Email</label>
+            <input type="email" name="Email" id="Email" required>
+            <br/>
+            <label for="Phone">Phone</label>
+            <input type="text" name="Phone" id="Phone" required>
+            <br/>
+            <label for="Comment">Comment</label>
+            <input type="text" name="Comment" id="Comment" required>
+            <br/>
+            <input type="submit" value="Submit">
+    </form>";
+} else {
+    $UserResults = CallLacrmApi("GetUser");
+    $UserId = $UserResults["UserId"];
+    $ContactResults = CallLacrmApi("CreateContact", array(
+        "IsCompany" => false,
+        "AssignedTo" => $UserId,
+        "Name" => $_POST["Name"],
+        "Email" => array(array("Email" => $_POST["Email"], "Type" => "Work")),
+        "Phone" => array(array("Phone" => $_POST["Phone"], "Type" => "Work"))
+    ));
+    $ContactId = $ContactResults["ContactId"];
+    CallLacrmApi("CreateNote", array("ContactId" => $ContactId, "Note" => $_POST["Comment"]));
+
+    echo "Contact form submitted!";
+}
+```
+
+### Functions Used
+- `CreateContact` - Establishes new contact record
+- `CreateNote` - Attaches comment to contact
+
+---
+
+## Tutorial 3: Preventing Duplicate Contacts
+
+### Purpose
+Check for existing contacts before creation to avoid duplicates.
+
+```php
+$Email = trim($_POST["Email"]);
+
+// Search for matching email address
+$ApiResponse = CallLacrmApi("GetContacts", array(
+    "SearchTerms" => $Email
+));
+$Results = $ApiResponse["Results"];
+$ContactId = null;
+
+foreach($Results as $Contact) {
+    $ContactEmail = $Contact["Email"][0]["Text"];
+    if ($Email === $ContactEmail) {
+        $ContactId = $Contact["ContactId"];
+        break;
+    }
+}
+
+// Create new contact only if no match found
+if (is_null($ContactId)) {
+    $UserResults = CallLacrmApi("GetUser");
+    $UserId = $UserResults["UserId"];
+    $ContactResults = CallLacrmApi("CreateContact", array(
+        "IsCompany" => false,
+        "AssignedTo" => $UserId,
+        "Name" => $_POST["Name"],
+        "Email" => array(array("Email" => $_POST["Email"], "Type" => "Work")),
+        "Phone" => array(array("Phone" => $_POST["Phone"], "Type" => "Work"))
+    ));
+    $ContactId = $ContactResults["ContactId"];
+}
+
+CallLacrmApi("CreateNote", array("ContactId" => $ContactId, "Note" => $_POST["Comment"]));
+echo "Contact form submitted!";
+```
+
+### Functions Used
+- `GetContacts` - Query existing contacts with search parameters
+- Email matching as deduplication strategy
+
+---
+
+## Summary
+
+These tutorials demonstrate:
+1. Basic API connection and authentication
+2. Creating and linking contacts and companies
+3. Building web forms that integrate with the CRM
+4. Implementing deduplication logic
+
+## Related Documentation
+- Contacts / Companies reference documentation
+- Core API Functions
+- Settings Functions
+- Advanced features including webhooks and file handling

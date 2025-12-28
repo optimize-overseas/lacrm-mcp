@@ -1,0 +1,122 @@
+# Less Annoying CRM API Documentation - Items Attached to Contacts
+
+## Overview
+This documentation section covers API functions for retrieving various record types attached to contacts in Less Annoying CRM's v2 API.
+
+---
+
+## Functions
+
+### 1. GetRelationshipsAttachedToContact
+**Purpose:** Returns all relationships for a specific contact (bi-directional)
+
+**Parameters:**
+- `ContactId` (Uid, Required) - The contact ID
+- `MaxNumberOfResults` (Number, Default: 500) - Max 10,000 results per call
+- `Page` (Number, Default: 1) - For pagination
+
+**Response includes:**
+- RelationshipId
+- ContactId1
+- ContactId2
+- Note
+- CreatedBy
+- DateCreated
+- DateEdited
+- Contact1MetaData
+- Contact2MetaData
+- CreatedByMetaData
+
+---
+
+### 2. GetEventsAttachedToContact
+**Purpose:** Returns all events for a contact
+
+**Parameters:**
+- `ContactId` (Uid, Required)
+- `MaxNumberOfResults` (Number, Default: 500)
+- `Page` (Number, Default: 1)
+
+**Response includes:**
+- EventId
+- Name
+- StartDate
+- EndDate
+- Location
+- Description
+- IsAllDay
+- IsRecurring
+- RecurrenceRule
+- ContactIds
+- UserIds
+- Attendees
+- CalendarId
+- metadata objects
+
+---
+
+### 3. GetTasksAttachedToContact
+**Purpose:** Returns all tasks for a contact
+
+**Parameters:**
+- `ContactId` (Uid, Required)
+- `MaxNumberOfResults` (Number, Default: 500)
+- `Page` (Number, Default: 1)
+
+**Response includes:**
+- TaskId
+- Name
+- DueDate
+- AssignedTo
+- Description
+- ContactId
+- IsCompleted
+- DateCompleted
+- CalendarId
+- metadata
+
+---
+
+### 4. GetPipelineItemsAttachedToContact
+**Purpose:** Retrieves pipeline items attached to a contact
+
+**Parameters:**
+- `ContactId` (Uid, Required)
+
+**Response includes:**
+- PipelineId
+- PipelineItems array with:
+  - PipelineItemId
+  - StatusId
+  - ContactId
+  - dates
+  - metadata
+
+---
+
+### 5. GetNotesAttachedToContact
+**Purpose:** Returns all notes for a contact
+
+**Parameters:**
+- `ContactId` (Uid, Required)
+- `MaxNumberOfResults` (Number, Default: 500)
+- `Page` (Number, Default: 1)
+
+**Response includes:**
+- NoteId
+- ContactId
+- UserId
+- DateCreated
+- Note content
+- ContactMetaData
+- UserMetaData
+- PipelineInfo
+- IsRichText
+
+---
+
+## Key Features
+- All functions support pagination via `MaxNumberOfResults` and `Page` parameters
+- Maximum page size is 10,000 results
+- Response objects include metadata for related records
+- Functions return `HasMoreResults` boolean to indicate additional pages

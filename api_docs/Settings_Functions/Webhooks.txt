@@ -1,0 +1,89 @@
+# Less Annoying CRM API Documentation - Webhooks (Settings Functions)
+
+## Overview
+The Webhooks API allows developers to configure automated POST requests to specified URLs triggered by user actions within the CRM system. When you set up a webhook, LACRM will send a POST to a URL you specify, triggered by specific user actions in the CRM.
+
+---
+
+## Core Functions
+
+### 1. CreateWebhook
+**Purpose:** Adds a new webhook to your account
+
+**Parameters:**
+- `EndpointUrl` (Text, Required): URL of webhook target. Must be HTTPS and respond to an initial handshake request
+- `Events` (Array of strings, Required): Specifies which event types trigger the webhook
+- `WebhookScope` (Enum, Required): Options are `User` (single user events) or `Account` (all account users)
+
+**Response Format:**
+```json
+{
+  "WebhookId": "4073198141755285324762189958356"
+}
+```
+
+---
+
+### 2. GetWebhook
+**Purpose:** Retrieves information about a specific webhook
+
+**Parameters:**
+- `WebhookId` (Uid, Required): The webhook identifier
+
+**Response Format:**
+```json
+{
+  "WebhookId": "4073198141755285324762190033483",
+  "EndpointUrl": "https://www.mysite.com/webhooks/012345",
+  "LastSendDate": "2025-12-22T21:35:09-08:00",
+  "SubscribedEvents": ["Contact.Create", "PipelineItemStatus.Create"],
+  "DateArchived": "2025-12-22T21:35:09-08:00"
+}
+```
+
+---
+
+### 3. GetWebhooks
+**Purpose:** Lists all webhooks on your account
+
+**Parameters:**
+- `IncludeArchived` (Bool, Default: false): Whether to include archived webhooks
+
+**Response Format:** Array of webhook objects matching GetWebhook structure
+
+---
+
+### 4. DeleteWebhook
+**Purpose:** Removes a specific webhook
+
+**Parameters:**
+- `WebhookId` (Uid, Required): The webhook to delete
+
+**Response:** No data returned on success; errors indicate failure
+
+---
+
+## Key Technical Details
+
+### Endpoint Requirements
+- All webhooks require HTTPS endpoints
+- Endpoints must respond to initial handshake validation
+
+### Scope Options
+- `User`: Triggers only for actions by the authenticated user
+- `Account`: Triggers for actions by any user in the account
+
+### Event Types
+Common webhook events include:
+- `Contact.Create`
+- `Contact.Edit`
+- `Contact.Delete`
+- `PipelineItemStatus.Create`
+- `PipelineItemStatus.Edit`
+- And more (see Using Webhooks documentation in Advanced section)
+
+---
+
+## Notes
+- Archived webhooks can be retrieved with the `IncludeArchived` parameter
+- See the Advanced section "Using webhooks" for detailed webhook implementation

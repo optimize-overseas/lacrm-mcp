@@ -1,0 +1,37 @@
+# Less Annoying CRM API Documentation - Ways to Connect
+
+## Overview
+This page explains the methods available for connecting to and authenticating with the Less Annoying CRM API.
+
+## API Endpoint
+- Base URL: https://api.lessannoyingcrm.com/v2/
+
+## Authentication
+- Authentication is done via API key in the Authorization header
+- API keys can be obtained from your account settings
+
+## Request Format
+- Content-Type: application/json
+- Method: POST
+- Body structure:
+  ```json
+  {
+    "Function": "FunctionName",
+    "Parameters": { ... }
+  }
+  ```
+
+## Headers Required
+- Content-Type: application/json
+- Authorization: YOUR_API_KEY_HERE
+
+## Connection Methods
+The API can be accessed from any programming language that supports HTTP requests. Common options include:
+- PHP with cURL
+- Python with requests
+- JavaScript with fetch
+- Any HTTP client library
+
+## Navigation
+- Previous: API Introduction
+- Next: Data Types

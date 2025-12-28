@@ -1,0 +1,76 @@
+# Less Annoying CRM API Documentation - Users
+
+## Overview
+The Users API section provides functionality to retrieve information about user accounts within a Less Annoying CRM instance.
+
+---
+
+## Available Functions
+
+### 1. GetUser
+**Purpose:** Retrieves information about the currently authenticated user.
+
+**Function Name:** `GetUser`
+
+**Parameters:** None - this function accepts no parameters.
+
+**Response Format:**
+```json
+{
+  "UserId": "string",
+  "FirstName": "string",
+  "LastName": "string",
+  "Timezone": "string",
+  "Email": "string"
+}
+```
+
+**Response Fields:**
+- `UserId` (Uid): Unique identifier for the user
+- `FirstName` (Text): User's first name
+- `LastName` (Text): User's last name
+- `Timezone` (Text): User's timezone setting
+- `Email` (Text): User's email address
+
+---
+
+### 2. GetUsers
+**Purpose:** Retrieves all users accessible to the authenticated user.
+
+**Function Name:** `GetUsers`
+
+**Parameters:** None - this function accepts no parameters.
+
+**Access Restrictions:**
+- Administrators can view all users
+- Non-admin users can only view users whose calendars or contacts they have access to
+- All users can view administrative account members
+
+**Response Format:**
+```json
+[
+  {
+    "UserId": "string",
+    "FirstName": "string",
+    "LastName": "string",
+    "Timezone": "string"
+  },
+  {...},
+  {...}
+]
+```
+
+**Response Fields:**
+- `UserId` (Uid): Unique identifier for each user
+- `FirstName` (Text): User's first name
+- `LastName` (Text): User's last name
+- `Timezone` (Text): User's timezone setting
+
+**Note:** The GetUsers response does not include email addresses (unlike GetUser for the current user).
+
+---
+
+## Common Use Cases
+- Get current user's ID for assigning contacts: `GetUser`
+- List all team members for filtering: `GetUsers`
+- Get timezone information for date/time handling

@@ -1,0 +1,90 @@
+# Less Annoying CRM API Documentation - Pipeline Statuses
+
+## Overview
+This section covers API functions for managing pipeline statuses in Less Annoying CRM. These functions allow creation, editing, deletion, and retrieval of statuses associated with pipelines.
+
+**Note:** "The functions on this page are rarely used, because once a pipeline has been customized, you normally don't need to mess with it."
+
+---
+
+## Function 1: CreatePipelineStatus
+
+**Purpose:** Creates a new status on an existing pipeline.
+
+**Parameters:**
+- `PipelineId` (Uid, Required): Specifies which pipeline receives the status
+- `Name` (Text, Required): The status label
+- `IsActive` (Bool, Default: false): Indicates if the status represents an active or closed pipeline step
+- `Color` (Text, Default: NULL): Named color or hex code
+
+**Available Colors:**
+- Named: Blue, LightBlue, Cyan, Teal, Green, LimeGreen, Yellow, Orange, Red, Pink, Magenta, Purple, Indigo, Gray
+- Hex codes: e.g., #486581
+
+**Response:**
+```json
+{
+  "StatusId": "4073198141690721720504206588486"
+}
+```
+
+---
+
+## Function 2: EditPipelineStatus
+
+**Purpose:** Updates properties of an existing pipeline status. Does not modify individual pipeline item statuses.
+
+**Parameters:**
+- `StatusId` (Uid, Required): The status being modified
+- `Name` (Text, Required): The status label
+- `IsActive` (Bool, Optional): Indicates active or closed pipeline step
+- `Color` (Text, Optional): Named color or hex code
+
+**Response:** No return value on success; error messages indicate failures.
+
+---
+
+## Function 3: DeletePipelineStatus
+
+**Purpose:** Removes a single pipeline status.
+
+**Parameters:**
+- `StatusId` (Uid, Required): The status identifier for deletion
+
+**Response:** No return value on success; error messages indicate failures.
+
+---
+
+## Function 4: GetPipelineStatuses
+
+**Purpose:** Retrieves all pipeline statuses for a specific pipeline or entire account.
+
+**Parameters:**
+- `PipelineId` (Uid, Default: NULL): When provided, returns statuses only for that pipeline
+
+**Response:**
+```json
+[
+  {
+    "StatusId": "4073198141693027563513421874308",
+    "PipelineId": "4073198141693027563513421308546",
+    "Name": "",
+    "IsActive": false,
+    "Color": "",
+    "DateCreated": "2025-12-22T21:35:09-08:00"
+  }
+]
+```
+
+---
+
+## Key Concepts
+
+### Active vs Closed Statuses
+- `IsActive: true` - Represents statuses where pipeline items are still in progress
+- `IsActive: false` - Represents closed/completed statuses
+
+### Color Options
+Named colors: Blue, LightBlue, Cyan, Teal, Green, LimeGreen, Yellow, Orange, Red, Pink, Magenta, Purple, Indigo, Gray
+
+Or use hex codes for custom colors (e.g., #486581)

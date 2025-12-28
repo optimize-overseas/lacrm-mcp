@@ -1,0 +1,156 @@
+# Less Annoying CRM API Documentation - Search Functions
+
+## Overview
+The Search section of the Less Annoying CRM API v2 provides functions to retrieve and filter contacts, companies, events, notes, pipeline items, and tasks.
+
+---
+
+## Core Search Functions
+
+### 1. GetContacts
+**Purpose:** Search for contacts/companies or retrieve all records if no search terms provided.
+
+**Function Name:** `GetContacts`
+
+**Parameters:**
+- `SearchTerms` (Text): Values to search across record fields
+- `RequiresWriteAccess` (Bool, default: false): Limit to editable records only
+- `RecordTypeFilter` (Enum): Options: `Contacts`, `Companies`, `NULL`
+- `OwnerFilter` (Array of Uids, default: []): Filter by assigned UserIds
+- `SortBy` (Enum, default: Relevance): Options: `Relevance`, `FirstName`, `LastName`, `CompanyName`, `DateCreated`, `LastUpdate`
+- `SortDirection` (Enum, default: Descending): Options: `Ascending`, `Descending`
+- `AdvancedFilters` (Array of objects): Complex filtering with Name, Operation, Value fields
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1): Pagination support
+
+**Response Fields Include:**
+- ContactId, AssignedTo, IsCompany, CompanyId
+- Name (Salutation, FirstName, MiddleName, LastName, Suffix)
+- Email array (Text, Type, TypeId)
+- Phone array (Text, Type, TypeId)
+- Address array (Street, City, State, Zip, Country, Type, TypeId)
+- Company Name, Job Title, Background Info
+- Website, Birthday
+- DateCreated, LastUpdate
+- UserMetaData, CompanyMetaData
+
+---
+
+### 2. GetEvents
+**Purpose:** Retrieve all events within a date range with filtering options.
+
+**Function Name:** `GetEvents`
+
+**Parameters:**
+- `SortDirection` (Enum, default: Ascending): Options: `Ascending`, `Descending`
+- `StartDate` (DateTime, default: NULL): Range start (inclusive)
+- `EndDate` (DateTime, default: NULL): Range end (inclusive)
+- `UserFilter` (Array of Uids, default: []): Filter by UserIds
+- `CalendarFilter` (Array of Uids, default: []): Filter by CalendarIds
+- `ContactId` (Uid, default: NULL): Get events for specific contact only
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1)
+
+**Response Fields Include:**
+- EventId, Name, StartDate, EndDate
+- Location, Description
+- IsAllDay, IsRecurring
+- RecurrenceEventId, RecurrenceRule, EndRecurrenceDate, SeriesNumber
+- DateCreated, DateUpdated
+- ContactIds array, UserIds array
+- Attendees array (IsUser, AttendeeId, AttendanceStatus)
+- CalendarId
+- ContactMetaData, UserMetaData, CalendarMetaData
+
+---
+
+### 3. GetNotes
+**Purpose:** Retrieve all notes with filtering and sorting capabilities.
+
+**Function Name:** `GetNotes`
+
+**Parameters:**
+- `SortDirection` (Enum, default: Descending): Options: `Ascending`, `Descending`
+- `DateFilterStart` (DateTime, default: NULL): Filter notes on/after date
+- `DateFilterEnd` (DateTime, default: NULL): Filter notes on/before date
+- `UserFilter` (Array of Uids, default: []): Filter by user who created notes
+- `ContactId` (Uid): Filter by attached contact
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1)
+
+**Response Fields Include:**
+- NoteId, ContactId, UserId
+- DateCreated, DateDisplayedInHistory
+- Note content, IsRichText
+- ContactMetaData (Name, AssignedTo)
+- UserMetaData (FirstName, LastName)
+- PipelineInfo (PipelineId, PipelineItemId, StatusId, PreviousStatusId, PipelineMetaData, StatusMetaData)
+
+---
+
+### 4. GetPipelineItems
+**Purpose:** Search pipeline items with advanced filtering options.
+
+**Function Name:** `GetPipelineItems`
+
+**Parameters:**
+- `PipelineId` (Uid) **Required**: Target pipeline
+- `UserFilter` (Array of Uids, default: []): Filter by user
+- `StatusFilter` (Array of Uids, default: []): Filter by status; empty array returns all active statuses
+- `AdvancedFilters` (Array of objects): Complex filtering
+- `SortBy` (Enum, default: Status): Options: `Status`, `DateCreated`, `LastUpdate`
+- `SortDirection` (Enum, default: Ascending): Options: `Ascending`, `Descending`
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1)
+
+**Response Fields Include:**
+- PipelineItemId, PipelineId, StatusId
+- ContactId
+- DateCreated, CreatedBy
+- LastUpdate, LastUpdatedBy
+- NumberOfUpdates, LastNote
+- PipelineMetaData (Name)
+- StatusMetaData (Name)
+- ContactMetaData (Name, AssignedTo)
+
+---
+
+### 5. GetTasks
+**Purpose:** Retrieve tasks within a date range with completion and user filtering.
+
+**Function Name:** `GetTasks`
+
+**Parameters:**
+- `StartDate` (Text) **Required**: Lower bound date
+- `EndDate` (Text) **Required**: Upper bound date
+- `UserFilter` (Array of Uids): Filter by assigned users
+- `ContactId` (Uid, default: NULL): Get all tasks for contact (ignores date range)
+- `CompletionStatus` (Enum, default: Both): Options: `Both`, `Incomplete`, `Complete`
+- `SortDirection` (Enum, default: Ascending): Options: `Ascending`, `Descending`
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1)
+
+**Response Fields Include:**
+- TaskId, Name, DueDate
+- AssignedTo, Description
+- ContactId
+- IsCompleted, DateCompleted
+- CalendarId
+- DateCreated
+- AssignedToMetaData (FirstName, LastName)
+- ContactMetaData (Name, AssignedTo)
+
+---
+
+## Advanced Features
+
+### Pagination
+All functions support `MaxNumberOfResults` and `Page` parameters. Response includes `HasMoreResults` boolean.
+
+### Advanced Filters
+GetContacts and GetPipelineItems support complex filtering documented separately:
+- Contacts: `/api_docs/v2/Advanced/Filter_Contacts`
+- Pipelines: `/api_docs/v2/Advanced/Filter_Pipelines`
+
+### Custom Fields
+Field availability varies by account; documentation reflects example LACRM account setup.

@@ -1,0 +1,94 @@
+# Less Annoying CRM API Documentation - Group Memberships
+
+## Overview
+Groups segment contacts for easy retrieval. Group memberships represent the link between a contact and a group. Unlike other API objects, group memberships lack individual IDs—you reference them using contact and group identifiers instead.
+
+## Core Concept
+When you're using the LACRM app and you attach a group to a contact, that's creating a group membership. Memberships cannot be edited since they contain only the IDs linking the two records.
+
+---
+
+## API Functions
+
+### 1. CreateGroupMembership
+**Purpose:** Adds a contact to a group
+
+**Parameters:**
+- `ContactId` (Uid) - Required. Contact or company identifier
+- `GroupId` (Uid) - Group identifier (use either GroupId or GroupName, not both)
+- `GroupName` (Text) - Alternative group identifier by name
+
+**Response:** None returned on success
+
+---
+
+### 2. DeleteGroupMembership
+**Purpose:** Removes a contact from a group
+
+**Parameters:**
+- `ContactId` (Uid) - Required. Contact or company identifier
+- `GroupId` (Uid) - Group identifier (use either GroupId or GroupName, not both)
+- `GroupName` (Text) - Alternative group identifier by name
+
+**Response:** None returned on success
+
+---
+
+### 3. GetGroupsAttachedToContact
+**Purpose:** Retrieves all groups a contact belongs to
+
+**Parameters:**
+- `ContactId` (Uid) - Required. Contact or company identifier
+- `MaxNumberOfResults` (Number) - Default: 500, Max: 10,000
+- `Page` (Number) - Default: 1, for pagination
+
+**Response Structure:**
+```json
+{
+  "HasMoreResults": boolean,
+  "Results": [
+    {
+      "ContactId": "string",
+      "GroupId": "string",
+      "GroupMetaData": {
+        "Name": "string"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 4. GetContactsInGroup
+**Purpose:** Retrieves all contacts in a specific group
+
+**Parameters:**
+- `GroupId` (Uid) - Group identifier (use either GroupId or GroupName, not both)
+- `GroupName` (Text) - Alternative group identifier by name
+- `MaxNumberOfResults` (Number) - Default: 500, Max: 10,000
+- `Page` (Number) - Default: 1, for pagination
+
+**Response Structure:**
+```json
+{
+  "HasMoreResults": boolean,
+  "Results": [
+    {
+      "ContactId": "string",
+      "GroupId": "string",
+      "ContactMetaData": {
+        "Name": "string",
+        "AssignedTo": "string"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Key Recommendations
+- Use `GroupId` over `GroupName` for precision
+- Never pass both `GroupId` and `GroupName` simultaneously
+- Pagination: increment `Page` when `HasMoreResults` returns true

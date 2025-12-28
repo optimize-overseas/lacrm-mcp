@@ -1,0 +1,86 @@
+# Less Annoying CRM API Documentation - Pipelines
+
+## Overview
+The Pipelines API section provides functions to manage pipeline configurations in Less Annoying CRM accounts, covering the Pipeline Settings functionality.
+
+---
+
+## Available Functions
+
+### 1. CreatePipeline
+**Purpose:** Creates a new pipeline on your account.
+
+**Parameters:**
+- `Name` (Text, Required): Display name for the pipeline
+- `Icon` (Text, Required): Image associated with the pipeline (see Pipeline Icons documentation for options)
+- `Permissions` (Enum, Default: Public): Options are `Public` or `TeamSharing`
+- `TeamIds` (Array of Uids, Default: []): Team IDs for TeamSharing permission mode
+
+**Response Format:**
+```json
+{
+  "PipelineId": "4073198141688415877494993052076"
+}
+```
+
+---
+
+### 2. EditPipeline
+**Purpose:** Edits an existing pipeline configuration.
+
+**Parameters:**
+- `PipelineId` (Uid, Required): ID of pipeline to modify
+- `Name` (Text): Pipeline display name
+- `Icon` (Text): Pipeline image
+- `Permissions` (Enum): Public or TeamSharing
+- `TeamIds` (Array of Uids): Team IDs for sharing
+
+**Response:** No data returned on success; error messages indicate failures.
+
+---
+
+### 3. DeletePipeline
+**Purpose:** Removes a single pipeline from your account.
+
+**Parameters:**
+- `PipelineId` (Uid, Required): ID of pipeline to delete
+
+**Response:** No data returned on success.
+
+---
+
+### 4. GetPipeline
+**Purpose:** Returns detailed information about a single pipeline configuration (setup only, not records).
+
+**Parameters:**
+- `PipelineId` (Uid, Required): ID of pipeline to retrieve
+
+**Response Includes:**
+- PipelineId
+- Name
+- Image
+- DateCreated
+- DateArchived
+- Statuses array with StatusId, Name, IsActive
+- Permissions
+- SharingTeamIds
+
+---
+
+### 5. GetPipelines
+**Purpose:** Returns all pipelines for the account (setup information only).
+
+**Parameters:**
+- `IncludeArchivedPipelines` (Bool, Default: false): Include deleted pipelines
+- `IncludeCustomFields` (Bool, Default: false): Fetch associated custom fields
+- `IncludeHiddenPipelines` (Bool, Default: false): Pipelines without user permission (admin only)
+
+**Response:** Array of pipeline objects with comprehensive field definitions, status information, and custom field configurations.
+
+---
+
+## Key Notes
+- Pipeline functions manage configuration only, not actual pipeline records
+- For managing individual pipeline items, use separate Pipeline Items API functions
+- TeamSharing permissions require TeamIds to be specified
+- Pipeline Icons are documented on a separate page

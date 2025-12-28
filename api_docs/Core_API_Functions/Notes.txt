@@ -1,0 +1,157 @@
+# Less Annoying CRM API Documentation - Notes
+
+## Overview
+The Notes API allows you to manage notes attached to contacts and companies in Less Annoying CRM. Each note is a timestamped text field tied to exactly one contact or company.
+
+---
+
+## API Functions
+
+### 1. CreateNote
+**Function Name:** `CreateNote`
+
+**Purpose:** Attaches a new note to an existing contact or company.
+
+**Parameters:**
+- `ContactId` (Uid) - **Required** - The contact or company ID for the note attachment
+- `Note` (Text) - **Required** - Plain text note content (HTML/markdown escaped, newlines preserved)
+- `DateDisplayedInHistory` (DateTime) - Optional - Timestamp for note display; defaults to current time
+
+**Response:**
+```json
+{
+  "NoteId": "4073197535309350529523826309903"
+}
+```
+
+---
+
+### 2. EditNote
+**Function Name:** `EditNote`
+
+**Purpose:** Modifies an existing note's content or timestamp.
+
+**Parameters:**
+- `NoteId` (Uid) - **Required** - The note identifier (obtainable via GetNotes or GetNotesAttachedToContact)
+- `Note` (Text) - Optional - Updated note text (overwrites previous content)
+- `DateDisplayedInHistory` (DateTime) - Optional - New timestamp for historical display
+
+**Response:** Returns no content on success; errors indicate failure.
+
+---
+
+### 3. DeleteNote
+**Function Name:** `DeleteNote`
+
+**Purpose:** Removes a note from a contact's profile.
+
+**Parameters:**
+- `NoteId` (Uid) - **Required** - The note identifier to delete
+
+**Response:** Returns no content on success; errors indicate failure.
+
+---
+
+### 4. GetNote
+**Function Name:** `GetNote`
+
+**Purpose:** Retrieves a single note (rarely used; prefer GetNotes or GetNotesAttachedToContact for practical applications).
+
+**Parameters:**
+- `NoteId` (Uid) - **Required** - The note identifier
+
+**Response Structure:**
+```json
+{
+  "NoteId": "string",
+  "ContactId": "string",
+  "UserId": "string",
+  "DateCreated": "2025-12-22T21:30:46-08:00",
+  "DateDisplayedInHistory": "2025-12-22T21:30:46-08:00",
+  "Note": "string",
+  "ContactMetaData": {
+    "Name": "string",
+    "AssignedTo": "string"
+  },
+  "UserMetaData": {
+    "FirstName": "string",
+    "LastName": "string"
+  },
+  "PipelineInfo": {
+    "PipelineId": "string",
+    "PipelineItemId": "string",
+    "StatusId": "string",
+    "PreviousStatusId": "string",
+    "PipelineMetaData": {"Name": "string"},
+    "StatusMetaData": {"Name": "string"}
+  },
+  "IsRichText": false
+}
+```
+
+---
+
+### 5. GetNotes
+**Function Name:** `GetNotes`
+
+**Purpose:** Retrieves all notes in the CRM with optional filtering and sorting.
+
+**Parameters:**
+- `SortDirection` (Enum) - Default: `Descending` - Options: `Ascending`, `Descending` (sorts by note date)
+- `DateFilterStart` (DateTime) - Optional - Returns notes on or after specified date
+- `DateFilterEnd` (DateTime) - Optional - Returns notes on or before specified date
+- `UserFilter` (Array of Uids) - Default: `[]` - Filters results by specific user IDs
+- `ContactId` (Uid) - Optional - Returns only notes for specified contact
+- `MaxNumberOfResults` (Number) - Default: `500`, Max: `10,000` - Results per call
+- `Page` (Number) - Default: `1` - For pagination when results exceed MaxNumberOfResults
+
+**Response Structure:**
+```json
+{
+  "HasMoreResults": boolean,
+  "Results": [
+    {
+      "NoteId": "string",
+      "ContactId": "string",
+      "UserId": "string",
+      "DateCreated": "ISO 8601 timestamp",
+      "DateDisplayedInHistory": "ISO 8601 timestamp",
+      "Note": "string",
+      "ContactMetaData": {...},
+      "UserMetaData": {...},
+      "PipelineInfo": {...},
+      "IsRichText": boolean
+    }
+  ]
+}
+```
+
+---
+
+### 6. GetNotesAttachedToContact
+**Function Name:** `GetNotesAttachedToContact`
+
+**Purpose:** Retrieves all notes for a specific contact.
+
+**Parameters:**
+- `ContactId` (Uid) - **Required** - The contact to retrieve notes for
+- `MaxNumberOfResults` (Number) - Default: `500`, Max: `10,000` - Results per call
+- `Page` (Number) - Default: `1` - For pagination
+
+**Response:** Same structure as GetNotes, filtered to specified contact's notes.
+
+---
+
+## Key Data Types
+- **Uid:** Unique identifier (string format)
+- **Text:** Plain text field with escaped HTML/markdown
+- **DateTime:** ISO 8601 format timestamps with timezone
+- **Enum:** Predefined string values
+- **Array:** Multiple values of specified type
+- **Number:** Integer values
+
+## Notes
+- All notes require attachment to an existing contact/company
+- Rich text support indicated by `IsRichText` field in responses
+- Pagination required for results exceeding `MaxNumberOfResults`
+- Timestamps default to current server time if not specified
