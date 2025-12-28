@@ -1,0 +1,57 @@
+# Less Annoying CRM API Documentation - Pipeline Icons
+
+## Overview
+The Less Annoying CRM API allows you to select icons when creating and editing pipelines. The icons are referenced by their name identifiers when making API calls.
+
+---
+
+## Available Icons
+
+| Icon Name | Visual Description |
+|-----------|-------------------|
+| `cart` | Shopping cart |
+| `book` | Book |
+| `paper` | Document/paper |
+| `comments` | Speech bubbles |
+| `briefcase` | Briefcase |
+| `phone_2` | Telephone |
+| `money` | Money symbol |
+| `credit_cards` | Credit cards |
+| `euro` | Euro currency |
+| `dollar_sign` | Dollar sign |
+| `pound` | Pound currency |
+| `yen` | Yen currency |
+| `lightbulb` | Light bulb |
+| `star` | Star |
+| `heart` | Heart |
+| `lightning` | Lightning bolt |
+| `flag` | Flag |
+| `shield` | Shield |
+| `medal` | Medal |
+| `gem` | Gemstone |
+| `ribbon` | Ribbon |
+| `lock` | Lock |
+| `puzzle` | Puzzle piece |
+| `medal_2` | Alternative medal design |
+
+---
+
+## Usage
+
+When creating or editing a pipeline via the API, use the icon name (snake_case format) in the `Icon` parameter:
+
+```json
+{
+  "Function": "CreatePipeline",
+  "Parameters": {
+    "Name": "Sales Pipeline",
+    "Icon": "dollar_sign",
+    "Permissions": "Public"
+  }
+}
+```
+
+---
+
+## Note
+This represents a partial list of available icons. Additional icons may be available beyond those documented here.

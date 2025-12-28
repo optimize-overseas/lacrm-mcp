@@ -1,0 +1,60 @@
+# Less Annoying CRM API Documentation - Debugging
+
+## Overview
+This page covers error handling and troubleshooting for the Less Annoying CRM API.
+
+## Error Codes
+
+When API calls fail, the system returns an HTTP 400 status code with an error object containing:
+
+- **ErrorCode**: A unique identifier for the specific error (example: "4178t6namw3vx9s6")
+- **ErrorDescription**: Human-readable explanation of what went wrong
+
+### Example Error Response
+```json
+{
+    "ErrorCode": "4178t6namw3vx9s6",
+    "ErrorDescription": "Description of the problem."
+}
+```
+
+## Understanding Errors
+The documentation notes that error descriptions typically contain sufficient detail to diagnose issues. When unable to resolve problems independently, users should contact support with:
+- The error code
+- Context about the attempted operation
+
+## API Call Logs
+
+Developers can review recent API activity through the account settings:
+
+### Location
+API Settings page: account.lessannoyingcrm.com/app/Settings/Api
+
+### History Available
+- Last 50 calls from the past week
+
+### Logged Information
+- Function names
+- Timestamps
+- Parameters sent
+- Results returned
+
+### Use Cases
+This feature enables developers to:
+- Audit their integrations
+- Track request history
+- Debug issues
+- Verify API calls are being made correctly
+
+## Support Resources
+
+For unresolved issues, contact the support team via their contact form. Provide:
+- The error code
+- Implementation context
+- What you were trying to accomplish
+
+This helps the team provide faster resolution.
+
+## Navigation
+- Previous: Data Types
+- Next: Other Tips

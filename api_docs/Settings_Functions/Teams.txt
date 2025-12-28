@@ -1,0 +1,112 @@
+# Less Annoying CRM API Documentation - Teams
+
+## Overview
+Teams are used to organize user permissions in your account. Teams enable role-based access management across your organization.
+
+---
+
+## API Functions
+
+### 1. CreateTeam
+
+**Function Name:** `CreateTeam`
+
+**Purpose:** Establish a new team to organize users within the account.
+
+**Parameters:**
+- `Name` (Text, Required): The team's display name
+- `UserIdList` (Array of Uids, Optional): Sets team membership; passing an empty array removes all users
+
+**Response Format:**
+```json
+{
+  "TeamId": "4073198141669969133421283555750"
+}
+```
+
+---
+
+### 2. DeleteTeam
+
+**Function Name:** `DeleteTeam`
+
+**Purpose:** Remove an existing team from the account. Only account owners and administrators possess this capability.
+
+**Parameters:**
+- `TeamId` (Uid, Required): The team identifier
+
+**Response:** No data returned on success; absence of error indicates successful completion.
+
+---
+
+### 3. EditTeam
+
+**Function Name:** `EditTeam`
+
+**Purpose:** Modify team name and/or update user membership.
+
+**Parameters:**
+- `TeamId` (Uid, Required): The team identifier
+- `Name` (Text, Optional): Updated team name
+- `UserIdList` (Array of Uids, Optional): Resets team members; empty array removes all users
+
+**Response:** No data returned on success; absence of error indicates successful completion.
+
+---
+
+### 4. GetTeam
+
+**Function Name:** `GetTeam`
+
+**Purpose:** Retrieve detailed information about a specific team.
+
+**Parameters:**
+- `TeamId` (Uid, Required): The team identifier
+
+**Response Format:**
+```json
+{
+  "TeamId": "4073198141669969133421284580628",
+  "Name": "string",
+  "DateCreated": "2025-12-22T21:35:09-08:00",
+  "UserIds": ["uid1", "uid2", "uid3"]
+}
+```
+
+---
+
+### 5. GetTeams
+
+**Function Name:** `GetTeams`
+
+**Purpose:** Retrieve all teams accessible to the caller. Admins see all account teams; regular users see only their assigned teams.
+
+**Parameters:** None required
+
+**Response Format:**
+```json
+[
+  {
+    "TeamId": "4073198141669969133421284130088",
+    "Name": "string",
+    "DateCreated": "2025-12-22T21:35:09-08:00",
+    "UserIds": ["uid1", "uid2", "uid3"]
+  },
+  {...}
+]
+```
+
+---
+
+## Key Data Types
+
+- **Uid:** Unique identifier string
+- **Text:** String values
+- **Array of Uids:** List of user identifiers
+
+---
+
+## Permission Notes
+- Only account owners and administrators can delete teams
+- Regular users can only view teams they belong to
+- Admins can view all account teams

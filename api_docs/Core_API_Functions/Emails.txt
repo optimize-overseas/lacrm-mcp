@@ -1,0 +1,93 @@
+# Less Annoying CRM API Documentation - Emails
+
+## Overview
+The Emails API enables logging and management of emails associated with contacts through the Email Logging feature.
+
+---
+
+## Available Functions
+
+### 1. CreateEmail
+**Purpose:** Creates a single email record
+
+**Parameters:**
+- `ContactIds` (Array of Uids) - Required. IDs of contacts to attach the email to
+- `UserIsSender` (Bool) - Default: false. Indicates if email was sent by the user
+- `From` (Object) - Required
+  - `Address` (Text) - Required. Sender's email address
+  - `Name` (Text) - Sender's display name
+- `To` (Array of objects) - Required. Recipients with address and name fields
+- `Cc` (Array of objects) - Optional. CC'd recipients with address and name fields
+- `Subject` (Text) - Email subject line
+- `Body` (Text) - Required. Email content
+- `Date` (DateTime) - Required. Email timestamp
+
+**Response:** Returns `EmailId` of the created email
+
+---
+
+### 2. GetEmail
+**Purpose:** Retrieves a single email record
+
+**Parameters:**
+- `EmailId` (Uid) - Required. The email identifier
+
+**Response:** Complete email object including:
+- EmailId
+- ContactIds
+- ContactMetaData
+- From (Address, Name)
+- To (Address, Name)
+- Cc (Address, Name)
+- Subject
+- Body
+- Date
+- UserId
+
+---
+
+### 3. GetEmails
+**Purpose:** Lists all emails in the CRM with optional filtering
+
+**Parameters:**
+- `SortDirection` (Enum) - Default: Descending. Options: Ascending, Descending
+- `DateFilterStart` (DateTime) - Default: NULL. Emails after this date
+- `DateFilterEnd` (DateTime) - Default: NULL. Emails before this date
+- `UserFilter` (Array of Uids) - Default: []. Filter by user IDs
+- `ContactId` (Uid) - Filter by specific contact
+- `GetContactsAtCompanyEmails` (Bool) - Default: false. Include company contact emails
+- `MaxNumberOfResults` (Number) - Default: 500, Max: 10,000
+- `Page` (Number) - Default: 1. For pagination
+
+**Response:** Object with `HasMoreResults` boolean and `Results` array containing email objects
+
+---
+
+### 4. GetEmailsAttachedToContact
+**Purpose:** Returns all emails associated with a specific contact
+
+**Parameters:**
+- `ContactId` (Uid) - Required. Target contact identifier
+- `MaxNumberOfResults` (Number) - Default: 500, Max: 10,000
+- `Page` (Number) - Default: 1. For pagination
+
+**Response:** Object with `HasMoreResults` and `Results` array of email objects
+
+---
+
+### 5. DeleteEmail
+**Purpose:** Removes an email from a contact's profile
+
+**Parameters:**
+- `EmailId` (Uid) - Required. Email identifier to delete
+
+**Response:** No return value; success indicated by absence of error message
+
+---
+
+## Key Features
+- Pagination support (up to 10,000 results per call)
+- Flexible filtering by date, user, and contact
+- Support for multiple recipients (To, Cc fields)
+- Contact metadata included in responses
+- User attribution tracking via UserId field

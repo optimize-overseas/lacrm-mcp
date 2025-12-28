@@ -1,0 +1,63 @@
+# Less Annoying CRM API Documentation - Introduction
+
+## Overview
+The Less Annoying CRM API enables external programs to interact with the platform. Rather than providing a user interface for human interaction, the API allows developers to programmatically read and write information to the CRM system.
+
+## Key Points
+- The API is described as "an advanced feature" requiring capable programmer expertise
+- The platform emphasizes simplicity in its API design philosophy
+- Users unfamiliar with programming concepts like APIs are directed back to the main CRM interface
+
+## Purpose Statement
+The documentation states: "Our API lets programmers write code that enters and retrieves information to/from the CRM."
+
+## Disclaimer
+The documentation notes that support staff cannot write or debug code, but remain available to discuss API implementation strategies.
+
+## Documentation Structure
+
+The sidebar navigation organizes content into three main sections:
+
+### 1. Getting Started (6 topics)
+- API Introduction
+- Ways to connect
+- Data types
+- Debugging
+- Other tips
+- Tutorials
+
+### 2. Core API Functions (11 endpoints)
+- Contacts/Companies
+- Items attached to contacts
+- Emails
+- Events
+- Files
+- Group Memberships
+- Notes
+- Pipeline Items
+- Relationships
+- Search
+- Tasks
+
+### 3. Settings Functions (8 endpoints)
+- Calendars
+- Custom Fields
+- Groups
+- Pipelines
+- Pipeline Statuses
+- Teams
+- Users
+- Webhooks
+
+### 4. Advanced Topics (5 articles)
+- Advanced search filters for contacts
+- Advanced search filters for pipelines
+- Advanced search filters for pipeline items
+- Sending files with the API
+- Using webhooks
+
+## Notable Statement
+The introduction emphasizes simplicity: "Less Annoying CRM is all about simplicity, and that applies to our API too," indicating the design philosophy extends to developer experience.
+
+## Navigation
+Users can navigate forward sequentially or use sidebar links to jump to specific topics.

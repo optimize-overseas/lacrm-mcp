@@ -1,0 +1,121 @@
+# Less Annoying CRM API Documentation - Groups (Settings Functions)
+
+## Overview
+Groups segment contacts for easy retrieval. The documentation distinguishes between group settings functions (managing groups themselves) and group membership functions (attaching groups to contacts). The settings functions described here are "rarely used" once groups are created.
+
+---
+
+## Function: CreateGroup
+
+**Purpose:** Creates a new group in the CRM
+
+**Parameters:**
+- `Name` (Text, Required): Unique group identifier
+- `Sharing` (Enum, Default: `Private`): Options are `Public`, `Private`, or `Teams`
+- `TeamIds` (Array of Uids, Default: `[]`): Required when Sharing is `Teams`
+- `Color` (Enum): Blue, LightBlue, Cyan, Teal, Green, LimeGreen, Yellow, Orange, Red, Pink, Magenta, Purple, Indigo, or Gray
+
+**Response:**
+```json
+{
+  "GroupId": "4073198141734532737679266906654"
+}
+```
+
+---
+
+## Function: EditGroup
+
+**Purpose:** Modifies an existing group's properties
+
+**Parameters:**
+- `GroupId` (Uid, Required): Group identifier to modify
+- `Name` (Text): Updated group name
+- `Sharing` (Enum): Access level configuration
+- `TeamIds` (Array of Uids): Team restrictions when applicable
+- `Color` (Enum): Visual identifier option
+
+**Response:** Returns no data upon successful completion
+
+---
+
+## Function: DeleteGroup
+
+**Purpose:** Removes an existing group
+
+**Parameters:**
+- `GroupId` (Uid, Required): Group to remove
+
+**Response:** No return data on success
+
+---
+
+## Function: GetGroup
+
+**Purpose:** Retrieves details for a single group (excludes contact membership data)
+
+**Parameters:**
+- `GroupId` (Uid, Required): Group identifier
+
+**Response:**
+```json
+{
+  "GroupId": "4073198141736838580688482064982",
+  "Name": "VIP Clients",
+  "Sharing": "Public",
+  "TeamIds": ["4073198141736838580688481320210"],
+  "Color": ""
+}
+```
+
+---
+
+## Function: GetGroups
+
+**Purpose:** Lists all accessible groups with optional contact counts
+
+**Parameters:**
+- `ReturnNumberOfContacts` (Bool, Default: `false`): Adds contact count; reduces performance
+- `MaxNumberOfResults` (Number, Default: 500, Max: 10,000): Results per call
+- `Page` (Number, Default: 1): Pagination control for large result sets
+
+**Response:**
+```json
+{
+  "HasMoreResults": false,
+  "Results": [
+    {
+      "GroupId": "4073198141739144423697694760167",
+      "Name": "VIP Clients",
+      "Sharing": "Public",
+      "TeamIds": ["4073198141739144423697695894413"],
+      "Color": ""
+    }
+  ]
+}
+```
+
+---
+
+## Available Colors
+- Blue
+- LightBlue
+- Cyan
+- Teal
+- Green
+- LimeGreen
+- Yellow
+- Orange
+- Red
+- Pink
+- Magenta
+- Purple
+- Indigo
+- Gray
+
+---
+
+## Key Notes
+- Group creation requires uniqueness in naming conventions
+- Sharing settings control visibility, not contact-level permissions
+- For contact-group associations, use Group Memberships API endpoints instead

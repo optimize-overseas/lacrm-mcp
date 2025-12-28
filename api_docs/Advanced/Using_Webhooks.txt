@@ -1,0 +1,151 @@
+# Less Annoying CRM API Documentation - Using Webhooks
+
+## Overview
+Webhooks enable proactive notifications when users perform actions in the CRM. They're created and managed via API functions in the Webhooks section.
+
+---
+
+## Creating a Webhook
+
+Use the `CreateWebhook` API call with these required parameters:
+
+### EndpointUrl
+- **MUST** be HTTPS
+- During setup, the system sends a POST with an `X-Hook-Secret` header
+- Your endpoint **MUST** respond with an identical header
+- Save this secret for payload signature verification
+
+### WebhookScope
+- `User`: Reports events only from the current user
+- `Account`: Reports events from any account user
+
+### Events
+- Array of event types triggering webhook sends
+
+---
+
+## Supported Event Types & Payloads
+
+### Contact Events
+| Event | Trigger |
+|-------|---------|
+| `Contact.Create` | New contact created |
+| `Contact.Update` | Contact modified |
+| `Contact.Delete` | Contact deleted |
+
+**Payload:** Array of affected contacts with full contact data
+
+---
+
+### Event Management
+| Event | Trigger |
+|-------|---------|
+| `Event.Create` | Calendar event created |
+| `Event.Update` | Calendar event modified |
+| `Event.Delete` | Calendar event deleted |
+
+**Payload:** Event details (or EventId only for deletions)
+
+---
+
+### Group Membership
+| Event | Trigger |
+|-------|---------|
+| `GroupMembership.Create` | Contact added to group |
+| `GroupMembership.Delete` | Contact removed from group |
+
+**Payload:** Group and affected contacts information
+
+---
+
+### Pipeline Items
+| Event | Trigger |
+|-------|---------|
+| `PipelineItemStatus.Create` | Pipeline item created |
+| `PipelineItemStatus.Update` | Pipeline item status changed |
+| `PipelineItemStatus.Delete` | Pipeline item deleted |
+
+**Payload:** Pipeline item details or IDs
+
+---
+
+### Public Forms
+| Event | Trigger |
+|-------|---------|
+| `PublicForm.Submit` | Form submission received |
+
+**Payload:** Submission ID, contact data, form fields, and metadata
+
+---
+
+## Payload Structure
+
+All webhook payloads include:
+- `UserId`: The user who triggered the event
+- `TriggeringEvent`: The event name (e.g., "Contact.Create")
+- Event-specific data
+
+---
+
+## Payload Verification
+
+Each webhook POST includes an `X-Hook-Signature` header containing:
+- SHA-256 HMAC hash of the body
+- Uses the original `X-Hook-Secret` as the key
+
+**Verification Process:**
+1. Compute HMAC-SHA256 of the raw request body using your saved secret
+2. Compare with the `X-Hook-Signature` header value
+3. If they match, the payload is authentic
+
+---
+
+## Delivery & Retry Logic
+
+- **Failed sends** trigger exponential backoff retries
+- **Successful responses** return HTTP codes below 300
+- After multiple failed attempts, webhooks disable automatically
+- Check `LastSendDate` via `GetWebhook` to track delivery status
+
+---
+
+## Handshake Requirements
+
+When you first create a webhook, LACRM sends a verification request:
+
+1. LACRM sends POST to your EndpointUrl with `X-Hook-Secret` header
+2. Your endpoint must respond with the same `X-Hook-Secret` in the response headers
+3. Save the secret value for future signature verification
+4. If handshake fails, webhook creation fails
+
+---
+
+## Example: Verifying Webhook Signature (PHP)
+
+```php
+$payload = file_get_contents('php://input');
+$signature = $_SERVER['HTTP_X_HOOK_SIGNATURE'];
+$secret = 'your-saved-secret';
+
+$expectedSignature = hash_hmac('sha256', $payload, $secret);
+
+if (hash_equals($expectedSignature, $signature)) {
+    // Payload is authentic
+    $data = json_decode($payload, true);
+    // Process the webhook...
+} else {
+    // Invalid signature - reject the request
+    http_response_code(401);
+    exit;
+}
+```
+
+---
+
+## Best Practices
+
+1. **Always verify signatures** before processing payloads
+2. **Return 2xx status codes** quickly to prevent retries
+3. **Process webhooks asynchronously** if handling takes time
+4. **Monitor LastSendDate** to detect delivery issues
+5. **Use Account scope** for comprehensive event coverage

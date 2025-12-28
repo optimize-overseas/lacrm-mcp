@@ -1,0 +1,106 @@
+# Less Annoying CRM API Documentation - Pipeline Items
+
+## Overview
+The Pipeline Items API provides functions for interacting with individual pipeline items attached to contacts and companies. This is distinct from pipeline structure management (see Pipelines functions).
+
+---
+
+## Core Functions
+
+### 1. CreatePipelineItem
+**Purpose:** Creates a pipeline item attached to a contact or company.
+
+**Required Parameters:**
+- `ContactId` (Uid): Identifier of the contact for attachment
+- `PipelineId` (Uid): Identifier of the pipeline
+- `StatusId` (Uid): Identifier of the initial status
+
+**Optional Parameters:**
+- `Note` (Text): Historical note for the item
+- `RunStatusAutomation` (Bool, default: false): Execute associated status automation
+
+**Response:** Returns `PipelineItemId` as a unique identifier
+
+---
+
+### 2. EditPipelineItem
+**Purpose:** Modifies an existing pipeline item.
+
+**Required Parameters:**
+- `PipelineItemId` (Uid): Item identifier
+
+**Optional Parameters:**
+- `StatusId` (Uid): New status assignment
+- `Note` (Text): Additional historical note
+- `RunStatusAutomation` (Bool, default: false): Trigger automation on status change
+
+**Response:** Confirmation message; success indicated by absence of errors
+
+---
+
+### 3. DeletePipelineItem
+**Purpose:** Removes a single pipeline item.
+
+**Required Parameters:**
+- `PipelineItemId` (Uid): Item to delete
+
+**Response:** Success confirmation
+
+---
+
+### 4. DeletePipelineItems
+**Purpose:** Batch deletion of multiple pipeline items.
+
+**Required Parameters:**
+- `PipelineItemIds` (Array of Uids): Items for removal (max 5000)
+- `PipelineId` (Uid): Associated pipeline (single pipeline per call)
+
+**Response:** Returns `NumberProcessed` and `NumberSkipped`
+
+---
+
+### 5. GetPipelineItem
+**Purpose:** Retrieves detailed information about a single pipeline item.
+
+**Required Parameters:**
+- `PipelineItemId` (Uid): Item identifier
+
+**Response includes:**
+- Item metadata (dates, creators, update counts)
+- Pipeline information
+- Status details
+- Contact association data
+
+---
+
+### 6. GetPipelineItems
+**Purpose:** Searches and lists pipeline items across account.
+
+**Required Parameters:**
+- `PipelineId` (Uid): Pipeline to query
+
+**Optional Parameters:**
+- `UserFilter` (Array of Uids): Restrict by creator
+- `StatusFilter` (Array of Uids): Filter by status
+- `AdvancedFilters` (Array): Complex search criteria
+- `SortBy` (Enum): Options include Status, DateCreated, LastUpdate
+- `SortDirection` (Enum): Ascending or Descending
+- `MaxNumberOfResults` (Number, default: 500, max: 10,000)
+- `Page` (Number, default: 1): Pagination control
+
+**Response:** Includes `HasMoreResults` flag and paginated results array
+
+---
+
+### 7. GetPipelineItemsAttachedToContact
+**Purpose:** Retrieves all pipeline items for a specific contact.
+
+**Required Parameters:**
+- `ContactId` (Uid): Contact identifier
+
+**Response:** Array of pipeline objects containing associated items with metadata
+
+---
+
+## Field Customization Note
+Field availability varies by account. Documentation displays example fields for demonstration purposes; login required for account-specific field information.

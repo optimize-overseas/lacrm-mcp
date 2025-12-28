@@ -1,0 +1,101 @@
+# Less Annoying CRM API Documentation - Advanced Search Filters (Pipelines)
+
+## Overview
+The Less Annoying CRM API supports advanced filtering for pipeline items through the `GetPipelineItems` function. Filters enable narrowing results based on specific criteria.
+
+---
+
+## Filter Structure
+
+Each filter object contains three components:
+
+1. **Name** - The field to filter on
+2. **Operation** - The type of comparison to perform
+3. **Value** - The criteria to match against
+
+---
+
+## Key Principle
+
+"Because fields can be customized, the available filters are different on every account."
+
+This means filter availability varies by CRM instance. Users must authenticate to view filters specific to their account configuration.
+
+---
+
+## Accessing Pipeline-Specific Filters
+
+Filters are organized by pipeline type. Users can select a specific pipeline (such as "Lead") to see applicable filter options for that pipeline's items.
+
+---
+
+## Common Filter Operations
+
+Based on the data types documentation, common operations include:
+
+### Text Fields
+- `Contains`
+- `DoesNotContain`
+- `IsExactly`
+- `IsNot`
+- `IsEmpty`
+- `IsNotEmpty`
+
+### Date Fields
+- `IsExactly`
+- `IsBetween`
+- `IsBefore`
+- `IsAfter`
+- `IsEmpty`
+- `IsNotEmpty`
+
+### Number Fields
+- `IsExactly`
+- `IsGreaterThan`
+- `IsLessThan`
+- `IsBetween`
+
+### Dropdown/Enum Fields
+- `IsExactly`
+- `IsNot`
+- `IsAnyOf`
+- `IsNoneOf`
+
+---
+
+## Data Type Considerations
+
+Filter value types follow the system's broader data type framework:
+- **Uid**: Unique identifiers (store as strings)
+- **Text**: String values
+- **Date**: Format `yyyy-mm-dd`
+- **DateTime**: ISO 8601 format
+- **Number**: Integer values
+- **Bool**: true/false
+
+---
+
+## Related Function
+
+Filters are specifically used with the `GetPipelineItems` endpoint:
+
+```json
+{
+  "Function": "GetPipelineItems",
+  "Parameters": {
+    "PipelineId": "your-pipeline-id",
+    "AdvancedFilters": [
+      {
+        "Name": "StatusId",
+        "Operation": "IsExactly",
+        "Value": "status-uid"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Important Note
+The actual filter names and operations available depend on your specific account configuration and custom fields. Log in to the documentation portal to see your account-specific filters.

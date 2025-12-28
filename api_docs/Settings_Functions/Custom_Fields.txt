@@ -1,0 +1,109 @@
+# Less Annoying CRM API Documentation - Custom Fields
+
+## Overview
+This section documents the Custom Fields API functions for Less Annoying CRM, allowing retrieval and editing of custom fields for contacts, companies, and pipeline records.
+
+---
+
+## Core Functions
+
+### 1. CreateCustomField
+**Purpose:** Create a new custom field for contacts, companies, pipelines, or public forms.
+
+**Key Parameters:**
+- `Name` (Text, Required): Field name
+- `RecordType` (Enum): Contact, Company, Pipeline, or PublicForm
+- `Type` (Enum, Required): Field type (see available types below)
+- `PipelineId` (Uid): Required if creating pipeline field
+- `IsRequired` (Bool): Field requirement setting
+- `ShowOnActiveBadge` (Bool): Show on active pipeline badges
+- `ShowOnClosedBadge` (Bool): Show on closed pipeline badges
+- `ShowOnReport` (Bool): Include in reports
+- `Options` (Array): For dropdown/checkbox fields
+- `DateDisplaySettings` (Array): Customization for date fields
+- `CurrencyDisplaySettings` (Array): Currency formatting options
+
+**Response:** Returns `CustomFieldId`
+
+---
+
+### 2. EditCustomField
+**Purpose:** Modify existing custom field properties.
+
+**Key Parameters:**
+- `CustomFieldId` (Uid, Required): Target field identifier
+- `Name` (Text): Updated field name
+- `IsRequired` (Bool): Requirement status
+- `Options` (Array): Manage dropdown choices by including/excluding OptionIds
+- Display and formatting settings (same as creation)
+
+**Response:** No return value on success
+
+---
+
+### 3. DeleteCustomField
+**Purpose:** Remove a custom field from the account.
+
+**Parameters:**
+- `CustomFieldId` (Uid, Required): Field to delete
+- `SectionDeletesFields` (Bool): Determines if nested section fields are also deleted
+
+**Response:** No return value on success
+
+---
+
+### 4. GetCustomField
+**Purpose:** Retrieve detailed information about a single custom field.
+
+**Parameters:**
+- `CustomFieldId` (Uid, Required): Target field identifier
+
+**Response:** Returns comprehensive field details including:
+- Name
+- Type
+- Options
+- Display settings
+- Archived status
+
+---
+
+### 5. GetCustomFields
+**Purpose:** List all custom fields in the account with optional filtering.
+
+**Key Parameters:**
+- `RecordType` (Enum): Filter by Contact, Company, or Pipeline
+- `PipelineId` (Uid): For pipeline-specific fields
+- `IncludeArchivedFields` (Bool): Include deleted fields
+- `IncludeSections` (Bool): Include section definitions
+- `MaxNumberOfResults` (Number): Default 500, maximum 10,000
+- `Page` (Number): For pagination
+
+**Response:** Returns `HasMoreResults` boolean and array of field objects
+
+---
+
+## Available Field Types
+- `Currency`: Monetary values with formatting
+- `Date`: Date picker
+- `Dropdown`: Single-select list
+- `RadioList`: Radio button options
+- `Checkbox`: Multi-select checkboxes
+- `Number`: Numeric input
+- `Text`: Single-line text
+- `TextArea`: Multi-line text
+- `ContactLink`: Link to another contact
+- `FileLink`: Link to uploaded file
+- `Signature`: Signature capture
+- `Section`: Grouping container
+- `SectionHeader`: Section title
+- `TextBlock`: Static text display
+
+---
+
+## Data Type Reference
+- **Text**: String values
+- **Enum**: Fixed option sets
+- **Uid**: Unique identifiers
+- **Bool**: True/false values
+- **Array**: Collections of objects or strings
+- **Number**: Numeric values

@@ -1,0 +1,129 @@
+# Less Annoying CRM API Documentation - Tasks
+
+## Overview
+Tasks are reminders for daily work assigned to users. They appear in task lists and daily agenda emails until marked complete. Unlike events, tasks lack time information (date-only). While often attached to contacts, tasks function as general-purpose items.
+
+---
+
+## Core Functions
+
+### 1. CreateTask
+**Purpose:** Creates a new task on the task list.
+
+**Parameters:**
+- `Name` [Text] - Required. Task label displayed on list
+- `DueDate` [Date] - When task appears on Workspace/agenda
+- `AssignedTo` [Uid] - User assignment (defaults to caller)
+- `CalendarId` [Uid] - Calendar categorization (defaults to user's calendar)
+- `Description` [Text] - Multi-line details (honors newlines)
+- `ContactId` [Uid] - Attach to contact record (optional)
+
+**Response:**
+```json
+{
+  "TaskId": "4073197535330103116606750064146"
+}
+```
+
+---
+
+### 2. EditTask
+**Purpose:** Modifies existing task properties, including completion status.
+
+**Parameters:**
+- `TaskId` [Uid] - Required. Task identifier
+- `Name` [Text] - Updated task label
+- `DueDate` [Date] - New due date
+- `AssignedTo` [Uid] - Reassign user
+- `CalendarId` [Uid] - Change calendar
+- `Description` [Text] - Updated details
+- `ContactId` [Uid] - Attach/detach (pass `null` to detach)
+- `IsComplete` [Bool] - Mark complete (`true`) or incomplete (`false`)
+
+**Response:** No data returned on success; errors indicate failure.
+
+---
+
+### 3. DeleteTask
+**Purpose:** Removes task permanently. (Use EditTask to mark complete, not delete.)
+
+**Parameters:**
+- `TaskId` [Uid] - Required. Task to delete
+
+**Response:** No data returned on success.
+
+---
+
+### 4. GetTask
+**Purpose:** Retrieves single task by ID.
+
+**Parameters:**
+- `TaskId` [Uid] - Required. Task identifier
+
+**Response Structure:**
+```json
+{
+  "TaskId": "uid",
+  "Name": "string",
+  "DueDate": "YYYY-MM-DD",
+  "AssignedTo": "uid",
+  "Description": "string",
+  "ContactId": "uid",
+  "IsCompleted": boolean,
+  "DateCompleted": "ISO-8601 timestamp",
+  "CalendarId": "uid",
+  "DateCreated": "ISO-8601 timestamp",
+  "AssignedToMetaData": {
+    "FirstName": "string",
+    "LastName": "string"
+  },
+  "ContactMetaData": {
+    "Name": "string",
+    "AssignedTo": "uid"
+  }
+}
+```
+
+---
+
+### 5. GetTasks
+**Purpose:** Retrieves tasks within date range with optional filtering.
+
+**Parameters:**
+- `StartDate` [Text] - Required. Lower date bound (YYYY-MM-DD)
+- `EndDate` [Text] - Required. Upper date bound (YYYY-MM-DD)
+- `UserFilter` [Array of Uids] - Filter by specific users
+- `ContactId` [Uid] - Filter by contact (default: NULL)
+- `CompletionStatus` [Enum] - Valid: `Both`, `Incomplete`, `Complete` (default: `Both`)
+- `SortDirection` [Enum] - Valid: `Ascending`, `Descending` (default: `Ascending`)
+- `MaxNumberOfResults` [Number] - Max 10,000 (default: 500)
+- `Page` [Number] - Pagination (default: 1)
+
+**Response:** Returns paginated results array with `HasMoreResults` flag and task objects.
+
+---
+
+### 6. GetTasksAttachedToContact
+**Purpose:** Retrieves all tasks associated with specific contact.
+
+**Parameters:**
+- `ContactId` [Uid] - Required. Contact identifier
+- `MaxNumberOfResults` [Number] - Max 10,000 (default: 500)
+- `Page` [Number] - Pagination (default: 1)
+
+**Response:** Paginated array of task objects matching contact.
+
+---
+
+## Data Types Referenced
+- **Text:** String values
+- **Date:** YYYY-MM-DD format
+- **Uid:** Unique identifier strings (store as strings, not numbers)
+- **Bool:** True/false values
+- **Enum:** Predefined value options
+- **Number:** Numeric values
+
+## Best Practices
+- Use EditTask with `IsComplete: true` instead of DeleteTask to preserve history
+- Tasks without a DueDate won't appear in daily agendas
+- Use ContactId to link tasks to specific contacts for better organization

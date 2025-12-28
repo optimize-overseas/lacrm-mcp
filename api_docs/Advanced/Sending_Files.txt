@@ -1,0 +1,82 @@
+# Less Annoying CRM API Documentation - Sending Files with the API
+
+## Overview
+The Less Annoying CRM API supports file uploads through specific API calls, requiring a different content type than standard JSON requests.
+
+---
+
+## Technical Requirements
+
+### File Size Limit
+- Maximum file size: **50MB** when uploading files via the API
+
+### Content Type
+- Requests must use `multipart/form-data` instead of the standard `application/json` format
+- This is required because files cannot be transmitted as JSON
+
+---
+
+## Request Structure
+
+When uploading files, the request body differs from typical API calls. Instead of only `Function` and `Parameters`, you must include:
+
+| Field | Description |
+|-------|-------------|
+| `Function` | The API function name (e.g., "CreateFile") |
+| `Parameters` | JSON-encoded parameter object (as a string) |
+| `File` | The actual file being uploaded |
+
+---
+
+## Implementation Example (PHP)
+
+```php
+$CurlHandle = curl_init("https://api.lessannoyingcrm.com/v2/");
+
+$Headers = array(
+    "Content-Type: multipart/form-data",
+    "Authorization: YOUR_API_KEY_HERE"
+);
+
+curl_setopt($CurlHandle, CURLOPT_POST, 1);
+curl_setopt($CurlHandle, CURLOPT_HTTPHEADER, $Headers);
+curl_setopt($CurlHandle, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($CurlHandle, CURLOPT_POSTFIELDS, [
+    "Function" => "CreateFile",
+    "Parameters" => json_encode([
+        "ContactId" => "CONTACT_TO_UPLOAD_FILE_TO"
+    ]),
+    "File" => new CURLFile("PATH_TO_FILE")
+]);
+
+$Result = curl_exec($CurlHandle);
+curl_close($CurlHandle);
+```
+
+---
+
+## Key Points
+
+1. **Authorization**: API key must still be included in the Authorization header
+2. **CURLFile**: In PHP, use `CURLFile` class to handle file data
+3. **Parameters Encoding**: Parameters must be JSON-encoded as a string within the multipart form
+4. **Function Field**: Still required as a separate form field
+
+---
+
+## Response
+
+On success, the API returns:
+```json
+{
+  "FileId": "unique-file-identifier"
+}
+```
+
+---
+
+## Related Functions
+
+The `CreateFile` function is the primary function for uploading files:
+- See Core API Functions > Files documentation for complete parameter details
+- Files are attached to contacts using the `ContactId` parameter

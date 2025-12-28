@@ -1,0 +1,132 @@
+# Less Annoying CRM API Documentation - Events
+
+## Overview
+The Events API allows creation and management of calendar events linked to contacts/companies. Events auto-complete when they end, making them suitable for time-specific scheduling (unlike tasks, which are better for day-of activities).
+
+---
+
+## Core Functions
+
+### CreateEvent
+**Purpose:** Creates a calendar event for the user or another authorized user.
+
+**Parameters:**
+- `Name` (Text, Required): Event display name
+- `StartDate` (DateTime, Required): Event start with timezone
+- `EndDate` (DateTime, Required): Event end time
+- `IsAllDay` (Bool, Default: false): All-day event flag
+- `Location` (Text): Event location
+- `Description` (Text): Event details
+- `CalendarId` (Uid): Target calendar (defaults to primary)
+- `Attendees` (Array of objects, Default: []): With IsUser, AttendeeId, AttendanceStatus
+- `IsRecurring` (Bool, Default: false): Recurring event flag
+- `RecurrenceRule` (Text): RFC 5545 recurrence specification
+- `EndRecurrenceRule` (DateTime): Final recurrence date
+
+**Response:** Returns `EventId`
+
+---
+
+### EditEvent
+**Purpose:** Updates existing event details.
+
+**Parameters:** Same as CreateEvent (EventId required), all fields optional for updates
+
+**Response:** No return value; success indicated by absence of error
+
+---
+
+### DeleteEvent
+**Purpose:** Removes event from all attendee calendars.
+
+**Parameters:**
+- `EventId` (Uid, Required): Event identifier
+
+**Response:** No return value on success
+
+---
+
+### GetEvent
+**Purpose:** Retrieves single event by ID.
+
+**Parameters:**
+- `EventId` (Uid, Required): Target event identifier
+
+**Response:** Complete event object including:
+- EventId
+- Name
+- StartDate, EndDate
+- Location
+- Description
+- IsAllDay
+- IsRecurring
+- RecurrenceEventId
+- RecurrenceRule
+- EndRecurrenceDate
+- SeriesNumber (for recurring instances)
+- DateCreated, DateUpdated
+- ContactIds, UserIds
+- Attendees (with attendance status)
+- CalendarId
+- ContactMetaData, UserMetaData, CalendarMetaData
+
+---
+
+### GetEvents
+**Purpose:** Retrieves events within date range with optional filtering.
+
+**Parameters:**
+- `SortDirection` (Enum, Default: Ascending): Sort order
+- `StartDate` (DateTime): Range start (inclusive)
+- `EndDate` (DateTime): Range end (inclusive)
+- `UserFilter` (Array of Uids): Filter by user IDs
+- `CalendarFilter` (Array of Uids): Filter by calendar IDs
+- `ContactId` (Uid): Filter by contact (overrides other filters)
+- `MaxNumberOfResults` (Number, Default: 500, Max: 10,000)
+- `Page` (Number, Default: 1): Pagination control
+
+**Response:** Object with HasMoreResults flag and Results array containing event objects
+
+---
+
+### GetEventsAttachedToContact
+**Purpose:** Returns all events for specified contact.
+
+**Parameters:**
+- `ContactId` (Uid, Required): Contact identifier
+- `MaxNumberOfResults` (Number, Default: 500)
+- `Page` (Number, Default: 1): Pagination
+
+**Response:** Object with HasMoreResults and Results array of event objects
+
+---
+
+## Event Object Structure
+
+**Key Fields:**
+- EventId, Name, StartDate, EndDate, Location, Description
+- IsAllDay, IsRecurring, RecurrenceEventId, RecurrenceRule, EndRecurrenceDate
+- SeriesNumber (for recurring instances)
+- DateCreated, DateUpdated
+- ContactIds, UserIds, Attendees (with attendance status)
+- CalendarId, ContactMetaData, UserMetaData, CalendarMetaData
+
+---
+
+## Technical Notes
+
+### Attendees Array Format
+- `IsUser` (boolean): Whether attendee is a CRM user
+- `AttendeeId` (Uid): User or contact ID
+- `AttendanceStatus` (Enum): `IsAttending`, `Maybe`, `NotAttending`
+
+### Recurrence
+- Recurring events require RecurrenceRule in RFC 5545 format
+- Example: `FREQ=WEEKLY;BYDAY=MO,WE,FR`
+
+### All-Day Events
+- All-day events ignore time components in date fields
+
+### Pagination
+- Available for queries returning multiple results
+- Maximum 10,000 results per call

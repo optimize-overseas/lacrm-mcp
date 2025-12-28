@@ -1,0 +1,59 @@
+# Less Annoying CRM API Documentation - Data Types
+
+## Overview
+This documentation page explains the data types used throughout the Less Annoying CRM API v2.
+
+## Introduction
+The API documentation specifies data types for parameters and return values. A critical note warns developers to store `Uid` values as strings rather than numeric types to prevent rounding errors.
+
+## Data Types Reference
+
+### Uid (Unique Identifier)
+"A very long number (normally 31 digits) that is totally unique in our database."
+- Recommendations include storing as strings to prevent floating-point conversion issues
+- Example: 31-digit numeric string
+
+### Text
+String values for textual data.
+
+### Number
+Integer values.
+
+### Bool
+Boolean true/false values.
+
+### UserId
+"Each LACRM user has a UserId."
+- Numeric identifier fitting within standard integer ranges
+- Allows direct numeric storage unlike Uids
+
+### Date
+- String format: `yyyy-mm-dd`
+- Example: `2019-07-25`
+
+### DateTime
+"A string representing both a date and time."
+- The API returns ISO 8601 formatted values
+- Example: `2019-07-25T16:00:00-05:00`
+- Incoming requests should use ISO 8601 for consistency
+
+### Enum
+"Short for enumeration. These fields are fields with a preset selection of options."
+- Valid options specified per field in documentation
+
+### Array of [Type]
+Multiple values passable to single fields.
+- Example: multiple UserIds for filtering
+- Syntax: Pass as JSON array
+
+### Array of Objects
+Lists containing multiple objects with individual field properties.
+- Commonly used for returning collections like task lists
+- Each object has its own set of properties
+
+## Important Note
+Always store Uid values as strings, not numbers, to avoid precision loss with large integers.
+
+## Navigation
+- Previous: Ways to Connect
+- Next: Debugging

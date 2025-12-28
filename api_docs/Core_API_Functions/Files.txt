@@ -1,0 +1,79 @@
+# Less Annoying CRM API Documentation - Files
+
+## Overview
+The Files section of the Less Annoying CRM API enables developers to manage file attachments associated with contact and company records.
+
+---
+
+## API Functions
+
+### 1. GetFile
+**Purpose:** Retrieves information about a single file with a temporary download link.
+
+**Parameters:**
+- `FileId` (Uid, Required): The Id of the file you're trying to get.
+
+**Response Fields:**
+- `FileId`: Unique file identifier
+- `CreatedBy`: User who uploaded the file
+- `FileType`: MIME type or extension
+- `DateCreated`: Upload timestamp
+- `FileName`: Original filename
+- `DisplayName`: Display name in CRM
+- `FileSize`: Size in bytes
+- `ParentId`: Parent record ID
+- `IsPrimary`: Whether this is the primary version
+- `DateDeleted`: Deletion timestamp (if applicable)
+- `NumVersions`: Number of file versions
+- `FileUrl`: Temporary download URL
+
+**Important:** The `FileUrl` only lasts for 5 minutes after being generated.
+
+---
+
+### 2. GetFilesAttachedToContact
+**Purpose:** Retrieves all files associated with a specific contact record.
+
+**Parameters:**
+- `ContactId` (Uid, Required): Id of the contact whose files we want to get
+- `ReturnPreviousVersions` (Bool, Default: false): If true, will return previous versions of the primary files
+
+**Response:** Array of file objects with same fields as GetFile response
+
+**Limitation:** This doesn't include files attached via a File Link custom field.
+
+---
+
+### 3. CreateFile
+**Purpose:** Uploads and attaches a file to a contact or company record.
+
+**Parameters:**
+- `ContactId` (Uid, Required): The ID of the contact or company the file will be attached to.
+- `File` (File object, Required): The file you're wanting to upload.
+
+**Special Requirement:** This function requires using the `multipart/form-data` content type to send a file with your request.
+
+**Response:**
+- `FileId`: Unique identifier of the newly created file
+
+**Documentation Reference:** Developers must consult the "Sending files via the API" documentation in the Advanced section for implementation details.
+
+---
+
+## Technical Notes
+
+### File URL Expiration
+- File URLs are temporary (5-minute expiration)
+- Generate a new URL when needed by calling GetFile again
+
+### File Uploads
+- File uploads require `multipart/form-data` encoding
+- See Advanced section for detailed upload instructions
+
+### File Versioning
+- File versions are tracked via `NumVersions` field
+- Use `ReturnPreviousVersions` parameter to retrieve version history
+
+### Deletion Tracking
+- Deletion status is tracked via `DateDeleted` field
+- Deleted files retain their metadata
