@@ -52,12 +52,13 @@ export function registerContactTools(server: McpServer): void {
     {
       title: 'Create Contact',
       description: `Create a new contact or company in Less Annoying CRM.
+
+PREREQUISITES (call these first):
+1. get_contact_schema (or get_company_schema for companies) → see ALL fields (required and optional), their types, and formats
+2. get_users → get valid user IDs for the required assigned_to field
+
 Use this tool when you need to add a new person or company to the CRM.
 Set is_company to true to create a company record instead of a person.
-
-Required: name, assigned_to (user ID), is_company flag.
-Use get_users first to find valid user IDs for assigned_to.
-Use get_custom_fields first to learn available custom field IDs.
 
 Returns the new ContactId on success.`,
       inputSchema: {
@@ -124,12 +125,13 @@ Returns the new ContactId on success.`,
     {
       title: 'Edit Contact',
       description: `Update an existing contact or company in Less Annoying CRM.
-Use this tool to modify contact details like name, email, phone, etc.
-Only include fields you want to change - other fields remain unchanged.
 
-Required: contact_id.
-Use search_contacts or get_contact to find valid contact IDs.
-Use get_custom_fields to learn available custom field IDs.`,
+PREREQUISITES (call these first):
+1. get_contact_schema (or get_company_schema) → see available fields, their types, and formats
+2. search_contacts or get_contact → find/verify valid contact_id
+
+Use this tool to modify contact details like name, email, phone, etc.
+Only include fields you want to change - other fields remain unchanged.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId of the record to edit'),
         name: z.string().optional().describe('Full name'),
