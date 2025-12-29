@@ -1,7 +1,7 @@
 # LACRM MCP Server Testing Results
 
 **Test Date:** 2025-12-23 (Updated: 2025-12-29)
-**Total Tools:** 79
+**Total Tools:** 82
 **Tester:** Claude (AI Assistant)
 
 ---
@@ -10,7 +10,7 @@
 
 | Phase | Tools | Passed | Failed | Notes |
 |-------|-------|--------|--------|-------|
-| 1. Discovery | 6 | 6 | 0 | All pass (includes new get_pipeline_custom_fields) |
+| 1. Discovery | 9 | 9 | 0 | Includes schema tools for contacts, companies, pipeline items |
 | 2. Contacts | 6 | 6 | 0 | All pass |
 | 3. Activities | 18 | 18 | 0 | Events, Tasks, Notes - all pass |
 | 4. Pipeline Items | 7 | 7 | 0 | All pass with custom fields |
@@ -19,7 +19,7 @@
 | 7. Relationships | 5 | 5 | 0 | All pass (including delete) |
 | 8. Group Membership | 4 | 4 | 0 | All pass including validation tests |
 | 9. Settings | 25 | 25 | 0 | All CRUD operations pass |
-| **Total** | **79** | **79** | **0** | **100% pass rate** |
+| **Total** | **82** | **82** | **0** | **100% pass rate** |
 
 ---
 
@@ -80,15 +80,18 @@ All test data was successfully created and deleted:
 
 ## Phase Details
 
-### Phase 1: Discovery Tools (6/6 passing)
+### Phase 1: Discovery Tools (9/9 passing)
 
 | Tool | Status | Notes |
 |------|--------|-------|
-| `get_users` | PASS | Returns array of User objects |
+| `get_contact_schema` | PASS | Complete schema (fixed + custom fields) for contacts |
+| `get_company_schema` | PASS | Complete schema (fixed + custom fields) for companies |
+| `get_pipeline_item_schema` | PASS | Complete schema (fixed + custom fields) for pipeline items |
+| `get_custom_fields` | PASS | Enhanced with record_type/pipeline_id filters, AI-friendly format |
+| `get_pipeline_custom_fields` | PASS | Convenience tool for pipeline fields |
 | `get_pipelines` | PASS | Returns array with Statuses nested |
 | `get_groups` | PASS | Returns `{ HasMoreResults, Results }` |
-| `get_custom_fields` | PASS | Enhanced with record_type/pipeline_id filters, AI-friendly format |
-| `get_pipeline_custom_fields` | PASS | NEW: Convenience tool for pipeline fields |
+| `get_users` | PASS | Returns array of User objects |
 | `get_calendars` | PASS | Returns array of calendars |
 
 ### Phase 2: Contact Tools (6/6 passing)
