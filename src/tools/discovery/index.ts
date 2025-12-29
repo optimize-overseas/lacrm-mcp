@@ -21,6 +21,197 @@ import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 
 /**
+ * Schema field definition for AI consumption
+ */
+interface SchemaField {
+  name: string;
+  required: boolean;
+  type: string;
+  input_format: string;
+  valid_options?: string[];
+  is_custom_field: boolean;
+  field_id?: string;
+  notes?: string;
+}
+
+/**
+ * Fixed fields for Contact records
+ */
+const CONTACT_FIXED_FIELDS: SchemaField[] = [
+  {
+    name: 'name',
+    required: true,
+    type: 'Text',
+    input_format: 'Full name as string (e.g., "John Smith")',
+    is_custom_field: false,
+    notes: 'For contacts, use full name. For companies, this becomes the company name.'
+  },
+  {
+    name: 'assigned_to',
+    required: true,
+    type: 'Uid',
+    input_format: 'User ID from get_users (e.g., "123456789")',
+    is_custom_field: false,
+    notes: 'Use get_users to find valid user IDs'
+  },
+  {
+    name: 'email',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "email@example.com", type: "Work"|"Personal"|"Other"}',
+    is_custom_field: false,
+    notes: 'Can include multiple email addresses with different types'
+  },
+  {
+    name: 'phone',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "555-123-4567", type: "Work"|"Mobile"|"Home"|"Fax"|"Other"}',
+    is_custom_field: false,
+    notes: 'Can include multiple phone numbers with different types'
+  },
+  {
+    name: 'company_name',
+    required: false,
+    type: 'Text',
+    input_format: 'Company name as string',
+    is_custom_field: false,
+    notes: 'Links contact to existing company or creates new one if not found'
+  },
+  {
+    name: 'job_title',
+    required: false,
+    type: 'Text',
+    input_format: 'Job title as string (e.g., "Sales Manager")',
+    is_custom_field: false
+  },
+  {
+    name: 'address',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {street, city, state, zip, country, type: "Work"|"Home"|"Other"}',
+    is_custom_field: false,
+    notes: 'Can include multiple addresses with different types'
+  },
+  {
+    name: 'website',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "https://example.com", type: "Work"|"Personal"|"Other"}',
+    is_custom_field: false
+  },
+  {
+    name: 'background_info',
+    required: false,
+    type: 'Text',
+    input_format: 'Free-form text for notes about the contact',
+    is_custom_field: false
+  },
+  {
+    name: 'birthday',
+    required: false,
+    type: 'Date',
+    input_format: 'YYYY-MM-DD for full date, or 0000-MM-DD for annual (no year)',
+    is_custom_field: false,
+    notes: 'Use 0000 as year for recurring annual dates'
+  }
+];
+
+/**
+ * Fixed fields for Company records
+ */
+const COMPANY_FIXED_FIELDS: SchemaField[] = [
+  {
+    name: 'name',
+    required: true,
+    type: 'Text',
+    input_format: 'Company name as string (must be unique)',
+    is_custom_field: false,
+    notes: 'Company names must be unique in the account'
+  },
+  {
+    name: 'assigned_to',
+    required: true,
+    type: 'Uid',
+    input_format: 'User ID from get_users (e.g., "123456789")',
+    is_custom_field: false,
+    notes: 'Use get_users to find valid user IDs'
+  },
+  {
+    name: 'email',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "email@example.com", type: "Work"|"Other"}',
+    is_custom_field: false
+  },
+  {
+    name: 'phone',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "555-123-4567", type: "Work"|"Fax"|"Other"}',
+    is_custom_field: false
+  },
+  {
+    name: 'address',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {street, city, state, zip, country, type: "Work"|"Other"}',
+    is_custom_field: false
+  },
+  {
+    name: 'website',
+    required: false,
+    type: 'Array',
+    input_format: 'Array of {text: "https://example.com", type: "Work"|"Other"}',
+    is_custom_field: false
+  },
+  {
+    name: 'background_info',
+    required: false,
+    type: 'Text',
+    input_format: 'Free-form text for notes about the company',
+    is_custom_field: false
+  }
+];
+
+/**
+ * Fixed fields for Pipeline Item records
+ */
+const PIPELINE_ITEM_FIXED_FIELDS: SchemaField[] = [
+  {
+    name: 'contact_id',
+    required: true,
+    type: 'Uid',
+    input_format: 'Contact or Company ID to attach the pipeline item to',
+    is_custom_field: false,
+    notes: 'Use search_contacts to find valid contact IDs'
+  },
+  {
+    name: 'pipeline_id',
+    required: true,
+    type: 'Uid',
+    input_format: 'Pipeline ID from get_pipelines',
+    is_custom_field: false,
+    notes: 'Use get_pipelines to find valid pipeline IDs'
+  },
+  {
+    name: 'status_id',
+    required: true,
+    type: 'Uid',
+    input_format: 'Status ID from get_pipelines (nested in pipeline.Statuses)',
+    is_custom_field: false,
+    notes: 'Each pipeline has its own set of valid status IDs'
+  },
+  {
+    name: 'note',
+    required: false,
+    type: 'Text',
+    input_format: 'Free-form text note for the pipeline item history',
+    is_custom_field: false
+  }
+];
+
+/**
  * Extended custom field interface with all API-returned properties
  */
 interface CustomFieldDetail {
@@ -439,6 +630,240 @@ Each user typically has their own calendar. Use CalendarId when creating calenda
 
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(calendars, null, 2) }]
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: formatErrorForLLM(error) }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // get_contact_schema - Complete field schema for contacts
+  server.registerTool(
+    'get_contact_schema',
+    {
+      title: 'Get Contact Schema',
+      description: `Get complete field schema for creating/editing contacts.
+
+Returns ALL fields (both fixed system fields and custom fields) with:
+- name: The parameter name to use in create_contact/edit_contact
+- required: Whether this field must be provided
+- type: Field type (Text, Array, Date, etc.)
+- input_format: Exact format expected for the value
+- is_custom_field: Whether this is a custom field (true) or built-in (false)
+- notes: Additional guidance for using this field
+
+ALWAYS call this before creating a contact to understand what data is needed.`,
+      inputSchema: {}
+    },
+    async () => {
+      try {
+        const client = getClient();
+
+        // Get custom fields for contacts
+        const result = await client.call<{ Results?: CustomFieldDetail[]; HasMoreResults?: boolean } | CustomFieldDetail[]>(
+          'GetCustomFields',
+          { RecordType: 'Contact' }
+        );
+
+        const customFields = Array.isArray(result) ? result : (result.Results || []);
+
+        // Convert custom fields to schema format
+        const customFieldSchemas: SchemaField[] = customFields.map(field => ({
+          name: field.Name,
+          required: field.IsRequired || false,
+          type: field.Type,
+          input_format: getInputFormatDescription(field.Type),
+          is_custom_field: true,
+          field_id: field.CustomFieldId,
+          valid_options: field.Options?.map(opt =>
+            typeof opt === 'string' ? opt : (opt.Value || opt.Name || String(opt))
+          )
+        }));
+
+        // Combine fixed and custom fields
+        const allFields = [...CONTACT_FIXED_FIELDS, ...customFieldSchemas];
+        const requiredFields = allFields.filter(f => f.required);
+
+        const output = {
+          record_type: 'Contact',
+          summary: {
+            total_fields: allFields.length,
+            required_count: requiredFields.length,
+            fixed_fields: CONTACT_FIXED_FIELDS.length,
+            custom_fields: customFieldSchemas.length
+          },
+          required_fields: requiredFields,
+          optional_fields: allFields.filter(f => !f.required),
+          usage_example: `create_contact with: { name: "John Smith", assigned_to: "<user_id>", email: [{text: "john@example.com", type: "Work"}] }`
+        };
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }]
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: formatErrorForLLM(error) }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // get_company_schema - Complete field schema for companies
+  server.registerTool(
+    'get_company_schema',
+    {
+      title: 'Get Company Schema',
+      description: `Get complete field schema for creating/editing companies.
+
+Returns ALL fields (both fixed system fields and custom fields) with:
+- name: The parameter name to use in create_contact (with is_company=true)
+- required: Whether this field must be provided
+- type: Field type (Text, Array, etc.)
+- input_format: Exact format expected for the value
+- is_custom_field: Whether this is a custom field (true) or built-in (false)
+- notes: Additional guidance for using this field
+
+ALWAYS call this before creating a company to understand what data is needed.
+Note: Companies are created using create_contact with is_company=true.`,
+      inputSchema: {}
+    },
+    async () => {
+      try {
+        const client = getClient();
+
+        // Get custom fields for companies
+        const result = await client.call<{ Results?: CustomFieldDetail[]; HasMoreResults?: boolean } | CustomFieldDetail[]>(
+          'GetCustomFields',
+          { RecordType: 'Company' }
+        );
+
+        const customFields = Array.isArray(result) ? result : (result.Results || []);
+
+        // Convert custom fields to schema format
+        const customFieldSchemas: SchemaField[] = customFields.map(field => ({
+          name: field.Name,
+          required: field.IsRequired || false,
+          type: field.Type,
+          input_format: getInputFormatDescription(field.Type),
+          is_custom_field: true,
+          field_id: field.CustomFieldId,
+          valid_options: field.Options?.map(opt =>
+            typeof opt === 'string' ? opt : (opt.Value || opt.Name || String(opt))
+          )
+        }));
+
+        // Combine fixed and custom fields
+        const allFields = [...COMPANY_FIXED_FIELDS, ...customFieldSchemas];
+        const requiredFields = allFields.filter(f => f.required);
+
+        const output = {
+          record_type: 'Company',
+          summary: {
+            total_fields: allFields.length,
+            required_count: requiredFields.length,
+            fixed_fields: COMPANY_FIXED_FIELDS.length,
+            custom_fields: customFieldSchemas.length
+          },
+          required_fields: requiredFields,
+          optional_fields: allFields.filter(f => !f.required),
+          usage_note: 'Create companies using create_contact with is_company=true',
+          usage_example: `create_contact with: { name: "Acme Corp", is_company: true, assigned_to: "<user_id>" }`
+        };
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }]
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: formatErrorForLLM(error) }],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // get_pipeline_item_schema - Complete field schema for pipeline items
+  server.registerTool(
+    'get_pipeline_item_schema',
+    {
+      title: 'Get Pipeline Item Schema',
+      description: `Get complete field schema for creating/editing pipeline items.
+
+Requires pipeline_id because each pipeline has different custom fields.
+
+Returns ALL fields (both fixed system fields and custom fields) with:
+- name: The parameter name to use in create_pipeline_item/edit_pipeline_item
+- required: Whether this field must be provided
+- type: Field type (Text, Dropdown, etc.)
+- input_format: Exact format expected for the value
+- valid_options: For dropdowns, the exact values you can use
+- is_custom_field: Whether this is a custom field (true) or built-in (false)
+
+WORKFLOW:
+1. Call get_pipelines to find the pipeline_id and its status_ids
+2. Call get_pipeline_item_schema with the pipeline_id
+3. Use the schema to construct a valid create_pipeline_item call`,
+      inputSchema: {
+        pipeline_id: z.string().describe('The PipelineId to get the schema for')
+      }
+    },
+    async ({ pipeline_id }) => {
+      try {
+        const client = getClient();
+
+        // Get custom fields for this pipeline
+        const result = await client.call<{ Results?: CustomFieldDetail[]; HasMoreResults?: boolean } | CustomFieldDetail[]>(
+          'GetCustomFields',
+          { RecordType: 'Pipeline', PipelineId: pipeline_id }
+        );
+
+        const customFields = Array.isArray(result) ? result : (result.Results || []);
+
+        // Convert custom fields to schema format
+        const customFieldSchemas: SchemaField[] = customFields.map(field => ({
+          name: field.Name,
+          required: field.IsRequired || false,
+          type: field.Type,
+          input_format: getInputFormatDescription(field.Type),
+          is_custom_field: true,
+          field_id: field.CustomFieldId,
+          valid_options: field.Options?.map(opt =>
+            typeof opt === 'string' ? opt : (opt.Value || opt.Name || String(opt))
+          )
+        }));
+
+        // Combine fixed and custom fields
+        const allFields = [...PIPELINE_ITEM_FIXED_FIELDS, ...customFieldSchemas];
+        const requiredFields = allFields.filter(f => f.required);
+
+        // Build usage example
+        const customFieldExample = customFieldSchemas
+          .filter(f => f.required)
+          .map(f => `"${f.name}": ${f.valid_options ? `"${f.valid_options[0]}"` : '"value"'}`)
+          .join(', ');
+
+        const output = {
+          record_type: 'PipelineItem',
+          pipeline_id,
+          summary: {
+            total_fields: allFields.length,
+            required_count: requiredFields.length,
+            fixed_fields: PIPELINE_ITEM_FIXED_FIELDS.length,
+            custom_fields: customFieldSchemas.length
+          },
+          required_fields: requiredFields,
+          optional_fields: allFields.filter(f => !f.required),
+          usage_example: customFieldExample
+            ? `create_pipeline_item with: { contact_id: "<id>", pipeline_id: "${pipeline_id}", status_id: "<status_id>", custom_fields: { ${customFieldExample} } }`
+            : `create_pipeline_item with: { contact_id: "<id>", pipeline_id: "${pipeline_id}", status_id: "<status_id>" }`
+        };
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }]
         };
       } catch (error) {
         return {

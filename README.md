@@ -1,6 +1,6 @@
 # LACRM MCP Server
 
-A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 79 tools.
+A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 82 tools.
 
 ## Installation
 
@@ -55,10 +55,13 @@ npm run inspector
 
 ## Available Tools
 
-### Discovery Tools (6)
+### Discovery Tools (9)
 
 | Tool | Description |
 |------|-------------|
+| `get_contact_schema` | Get complete field schema for contacts (fixed + custom fields) |
+| `get_company_schema` | Get complete field schema for companies (fixed + custom fields) |
+| `get_pipeline_item_schema` | Get complete field schema for pipeline items (fixed + custom fields) |
 | `get_custom_fields` | Get custom field definitions with optional filtering by record type and pipeline |
 | `get_pipeline_custom_fields` | Get custom fields for a specific pipeline with required/optional status |
 | `get_pipelines` | Get all pipelines with their statuses |
