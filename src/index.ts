@@ -7,7 +7,7 @@
  * through a standardized tool interface.
  *
  * Features:
- * - 82 tools covering contacts, events, tasks, notes, pipelines, emails, files, and settings
+ * - 83 tools covering contacts, events, tasks, notes, pipelines, emails, files, and settings
  * - Secure API key authentication via environment variable or config file
  * - Comprehensive error handling with LLM-friendly messages
  * - Full CRUD operations for all LACRM entities
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
       version: '1.0.0'
     });
 
-    // Register all 82 tools across discovery, contacts, activities, settings, etc.
+    // Register all 83 tools across discovery, contacts, activities, settings, etc.
     registerAllTools(server);
     logger.info('Tools registered');
 
