@@ -7,7 +7,7 @@
  * through a standardized tool interface.
  *
  * Features:
- * - 75 tools covering contacts, events, tasks, notes, pipelines, emails, files, and settings
+ * - 82 tools covering contacts, events, tasks, notes, pipelines, emails, files, and settings
  * - Secure API key authentication via environment variable or config file
  * - Comprehensive error handling with LLM-friendly messages
  * - Full CRUD operations for all LACRM entities
@@ -25,6 +25,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { loadConfig } from './config.js';
 import { initializeClient } from './client.js';
 import { registerAllTools } from './tools/index.js';
+import { registerResources } from './resources/index.js';
 import { logger } from './utils/logger.js';
 
 /**
@@ -54,9 +55,13 @@ async function main(): Promise<void> {
       version: '1.0.0'
     });
 
-    // Register all 75 tools across discovery, contacts, activities, settings, etc.
+    // Register all 82 tools across discovery, contacts, activities, settings, etc.
     registerAllTools(server);
     logger.info('Tools registered');
+
+    // Register workflow resources for AI discoverability
+    registerResources(server);
+    logger.info('Resources registered');
 
     // Connect using stdio transport for MCP protocol communication
     const transport = new StdioServerTransport();

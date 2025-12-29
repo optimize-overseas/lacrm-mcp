@@ -28,11 +28,13 @@ export function registerPipelineItemTools(server: McpServer): void {
     {
       title: 'Create Pipeline Item',
       description: `Create a new pipeline item attached to a contact in Less Annoying CRM.
+
+PREREQUISITES (call these first):
+1. get_pipelines → find pipeline_id and valid status_ids
+2. get_pipeline_item_schema(pipeline_id) → see required custom fields and their valid options
+3. search_contacts → find/verify valid contact_id
+
 Pipeline items track contacts through sales stages or workflows.
-
-Required: contact_id, pipeline_id, status_id.
-Use get_pipelines first to discover available pipelines and their status IDs.
-
 Optionally run status automation when creating (e.g., send emails, create tasks).`,
       inputSchema: {
         contact_id: z.string().describe('Contact or company ID to attach the item to'),
@@ -76,11 +78,13 @@ Optionally run status automation when creating (e.g., send emails, create tasks)
     {
       title: 'Edit Pipeline Item',
       description: `Update an existing pipeline item in Less Annoying CRM.
-Use this to change status, add notes, or update custom field values.
 
-Required: pipeline_item_id.
-Use search_pipeline_items or get_pipeline_item to find valid IDs.
-Use get_pipelines to find valid status IDs.`,
+PREREQUISITES (call these first):
+1. get_pipeline_item_schema(pipeline_id) → see available custom fields and their valid options
+2. search_pipeline_items or get_pipeline_item → find/verify valid pipeline_item_id
+3. get_pipelines → find valid status_ids (if changing status)
+
+Use this to change status, add notes, or update custom field values.`,
       inputSchema: {
         pipeline_item_id: z.string().describe('The PipelineItemId to edit'),
         status_id: z.string().optional().describe('New status ID'),

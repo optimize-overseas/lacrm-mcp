@@ -53,6 +53,18 @@ Add to your Claude Desktop configuration file (`~/Library/Application Support/Cl
 npm run inspector
 ```
 
+## MCP Resources
+
+This server provides workflow resources that help AI clients understand how to use the MCP effectively. Resources are discoverable via the standard MCP `resources/list` protocol.
+
+| Resource URI | Description |
+|--------------|-------------|
+| `lacrm://workflows/overview` | Start here - explains what tools to call before any operation |
+| `lacrm://workflows/contacts` | Detailed workflow for creating and editing contacts/companies |
+| `lacrm://workflows/pipeline-items` | Detailed workflow for creating and editing pipeline items |
+
+**Usage**: Call `resources/list` to discover available resources, then `resources/read` with the URI to get the content.
+
 ## Available Tools
 
 ### Discovery Tools (9)
