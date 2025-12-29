@@ -2,6 +2,7 @@
  * Discovery Tools for LACRM MCP Server
  *
  * Tools that help the LLM discover the account structure before performing operations:
+ * - get_workflow_guide: START HERE - explains what tools to call before any operation
  * - get_custom_fields: Learn custom field IDs, types, requirements for contacts/pipelines
  * - get_pipeline_custom_fields: Get custom fields for a specific pipeline (convenience tool)
  * - get_pipelines: Discover pipelines and their statuses
@@ -9,8 +10,8 @@
  * - get_users: List users for assignment and filtering
  * - get_calendars: Discover calendars for event creation
  *
- * Recommended workflow: Call these tools first to understand the account
- * configuration before creating or modifying records.
+ * Recommended workflow: Call get_workflow_guide first to understand the MCP,
+ * then call the appropriate schema tools before creating or modifying records.
  *
  * @module tools/discovery
  */
@@ -334,7 +335,98 @@ function formatCustomFieldForAI(field: CustomFieldDetail): FormattedCustomField 
   return formatted;
 }
 
+/**
+ * Workflow guide content - helps AI understand how to use this MCP effectively
+ */
+const WORKFLOW_GUIDE = `# LACRM MCP Workflow Guide
+
+## START HERE - Before ANY Create/Edit Operation
+
+ALWAYS call the appropriate schema tool FIRST to understand required fields and their formats.
+
+| Operation | Call First | Why |
+|-----------|------------|-----|
+| Create/edit CONTACT | get_contact_schema | See all fields (fixed + custom), required status, formats |
+| Create/edit COMPANY | get_company_schema | See all fields (fixed + custom), required status, formats |
+| Create/edit PIPELINE ITEM | get_pipeline_item_schema(pipeline_id) | See required custom fields and valid dropdown options |
+| Assign to user | get_users | Get valid user IDs |
+| Add to group | get_groups | Get valid group IDs |
+| Create event | get_calendars | Get valid calendar IDs |
+
+## What Schema Tools Return
+
+Each schema tool returns field information including:
+
+- **name**: The parameter name to use in create/edit calls
+- **required**: true/false - MUST be provided if true
+- **type**: Field type (Text, Dropdown, Date, Array, etc.)
+- **input_format**: Exact format expected (e.g., "YYYY-MM-DD" for dates)
+- **valid_options**: For Dropdown/RadioList fields, the exact allowed values
+- **is_custom_field**: true for account-specific fields, false for built-in fields
+
+## Quick Reference: Required Fields
+
+### Contact (minimum required):
+- name: Full name as string
+- assigned_to: User ID from get_users
+- is_company: false
+
+### Company (minimum required):
+- name: Company name (must be unique)
+- assigned_to: User ID from get_users
+- is_company: true
+
+### Pipeline Item (minimum required):
+- contact_id: Contact to attach to
+- pipeline_id: Pipeline ID from get_pipelines
+- status_id: Status ID from get_pipelines
+- custom_fields: Check get_pipeline_item_schema for required fields
+
+## Example Workflows
+
+### Creating a Contact:
+1. Call get_contact_schema → see required fields (name, assigned_to)
+2. Call get_users → find valid user ID for assigned_to
+3. Call create_contact with { name, assigned_to, is_company: false, ... }
+
+### Creating a Pipeline Item:
+1. Call get_pipelines → find pipeline_id and status_id
+2. Call get_pipeline_item_schema(pipeline_id) → see required custom fields
+3. Call search_contacts → find contact_id
+4. Call create_pipeline_item with { contact_id, pipeline_id, status_id, custom_fields: {...} }
+
+## Error Recovery
+
+If you receive an error about a missing required field, call the appropriate schema tool to see what fields are needed.
+
+Example error: "'Hunter' field is required for CreatePipelineItem"
+Solution: Call get_pipeline_item_schema(pipeline_id) to see the Hunter field's valid options.
+`;
+
 export function registerDiscoveryTools(server: McpServer): void {
+  // get_workflow_guide - START HERE tool
+  server.registerTool(
+    'get_workflow_guide',
+    {
+      title: 'Get Workflow Guide',
+      description: `START HERE: Get the workflow guide for using this LACRM MCP effectively.
+
+This tool explains:
+- What schema tools to call BEFORE any create/edit operation
+- Required fields for contacts, companies, and pipeline items
+- Example workflows for common operations
+- How to interpret schema responses
+
+Call this tool first when connecting to understand how to use the MCP correctly.`,
+      inputSchema: {}
+    },
+    async () => {
+      return {
+        content: [{ type: 'text' as const, text: WORKFLOW_GUIDE }]
+      };
+    }
+  );
+
   // get_custom_fields
   server.registerTool(
     'get_custom_fields',

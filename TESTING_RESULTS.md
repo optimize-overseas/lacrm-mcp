@@ -1,7 +1,7 @@
 # LACRM MCP Server Testing Results
 
 **Test Date:** 2025-12-23 (Updated: 2025-12-29)
-**Total Tools:** 82
+**Total Tools:** 83
 **Tester:** Claude (AI Assistant)
 
 ---
@@ -10,7 +10,7 @@
 
 | Phase | Tools | Passed | Failed | Notes |
 |-------|-------|--------|--------|-------|
-| 1. Discovery | 9 | 9 | 0 | Includes schema tools for contacts, companies, pipeline items |
+| 1. Discovery | 10 | 10 | 0 | Includes workflow guide and schema tools |
 | 2. Contacts | 6 | 6 | 0 | All pass |
 | 3. Activities | 18 | 18 | 0 | Events, Tasks, Notes - all pass |
 | 4. Pipeline Items | 7 | 7 | 0 | All pass with custom fields |
@@ -19,7 +19,7 @@
 | 7. Relationships | 5 | 5 | 0 | All pass (including delete) |
 | 8. Group Membership | 4 | 4 | 0 | All pass including validation tests |
 | 9. Settings | 25 | 25 | 0 | All CRUD operations pass |
-| **Total** | **82** | **82** | **0** | **100% pass rate** |
+| **Total** | **83** | **83** | **0** | **100% pass rate** |
 
 ---
 
@@ -80,10 +80,11 @@ All test data was successfully created and deleted:
 
 ## Phase Details
 
-### Phase 1: Discovery Tools (9/9 passing)
+### Phase 1: Discovery Tools (10/10 passing)
 
 | Tool | Status | Notes |
 |------|--------|-------|
+| `get_workflow_guide` | PASS | Returns workflow guide explaining what to call before operations |
 | `get_contact_schema` | PASS | Complete schema (fixed + custom fields) for contacts |
 | `get_company_schema` | PASS | Complete schema (fixed + custom fields) for companies |
 | `get_pipeline_item_schema` | PASS | Complete schema (fixed + custom fields) for pipeline items |
@@ -276,7 +277,7 @@ API error: 'Hunter' field is required for CreatePipelineItem
 
 ## Conclusion
 
-The LACRM MCP server is **production ready** with a **100% pass rate** (78/78 tools).
+The LACRM MCP server is **production ready** with a **100% pass rate** (83/83 tools).
 
 ### Key Fixes Applied:
 1. Fixed API response parsing to handle LACRM v2 response format
