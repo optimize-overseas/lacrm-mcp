@@ -1,6 +1,6 @@
 # LACRM MCP Server
 
-A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 75 tools.
+A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 79 tools.
 
 ## Installation
 
@@ -55,11 +55,12 @@ npm run inspector
 
 ## Available Tools
 
-### Discovery Tools (5)
+### Discovery Tools (6)
 
 | Tool | Description |
 |------|-------------|
-| `get_custom_fields` | Get all custom field definitions for contacts and companies |
+| `get_custom_fields` | Get custom field definitions with optional filtering by record type and pipeline |
+| `get_pipeline_custom_fields` | Get custom fields for a specific pipeline with required/optional status |
 | `get_pipelines` | Get all pipelines with their statuses |
 | `get_groups` | Get all groups in the account |
 | `get_users` | Get all users in the account |
@@ -215,27 +216,46 @@ npm run inspector
 
 ## Custom Fields
 
-LACRM supports custom fields on contacts and pipeline items. To work with custom fields:
+LACRM supports custom fields on contacts, companies, and pipeline items. The `get_custom_fields` tool returns AI-friendly information including:
 
-1. First call `get_custom_fields` to discover available custom field IDs
-2. Include custom field values when creating/editing contacts using the `custom_fields` parameter
-3. Custom field IDs look like `Custom_3971579198060101921194362986880`
+- **name**: The field name to use as key when setting values
+- **required**: Whether this field must be provided
+- **type**: Field type (Text, Number, Dropdown, Date, etc.)
+- **input_format**: Description of expected value format
+- **valid_options**: For Dropdown/RadioList/Checkbox fields, the allowed values
+
+### For Contacts/Companies:
+
+1. Call `get_custom_fields` with `record_type="Contact"` or `record_type="Company"`
+2. Note the field names and whether they are required
+3. Use field names as keys in the `custom_fields` parameter
+
+### For Pipeline Items:
+
+1. Call `get_pipeline_custom_fields` with the `pipeline_id`
+2. Note all required fields and their valid options
+3. Use field names as keys in the `custom_fields` parameter when creating/editing
 
 Example:
 ```json
 {
-  "name": "John Doe",
   "custom_fields": {
-    "Custom_3971579198060101921194362986880": "Field Value"
+    "Hunter": "Matt",
+    "Deal Value": 50000,
+    "Expected Close": "2025-03-15"
   }
 }
 ```
 
 ## Pipeline Support
 
+Workflow for creating pipeline items:
+
 1. Call `get_pipelines` to discover pipeline IDs and their statuses
-2. Use `create_pipeline_item` with the appropriate `pipeline_id` and `status_id`
-3. Pipeline items track monetary values and custom fields specific to each pipeline
+2. Call `get_pipeline_custom_fields` with the pipeline_id to see required fields
+3. Use `create_pipeline_item` with `pipeline_id`, `status_id`, and `custom_fields`
+
+The tools provide clear error messages when required fields are missing.
 
 ## API Reference
 
