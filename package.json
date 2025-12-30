@@ -1,7 +1,7 @@
 {
   "name": "lacrm-mcp",
   "version": "1.0.0",
-  "description": "MCP server for Less Annoying CRM API",
+  "description": "MCP server for Less Annoying CRM - 83 tools for contacts, pipelines, tasks, events, and more",
   "type": "module",
   "bin": {
     "lacrm-mcp": "./build/index.js"
@@ -24,11 +24,28 @@
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "less-annoying-crm",
     "lacrm",
     "crm",
-    "claude"
+    "claude",
+    "ai",
+    "anthropic",
+    "contacts",
+    "sales",
+    "pipeline"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "Optimize Overseas",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/optimize-overseas/lacrm-mcp.git"
+  },
+  "homepage": "https://github.com/optimize-overseas/lacrm-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/optimize-overseas/lacrm-mcp/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

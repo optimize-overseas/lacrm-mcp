@@ -10,12 +10,80 @@
  * - Singleton pattern for global client access
  * - Supports both JSON and multipart/form-data requests (for file uploads)
  * - Automatic error handling with typed exceptions
+ * - Rate limiting: 120 requests per minute max (sliding window)
  *
  * @module client
  */
 
 import { ApiError, AuthenticationError } from './utils/errors.js';
 import { logger } from './utils/logger.js';
+
+// ============================================================================
+// Rate Limiter Implementation
+// ============================================================================
+
+/**
+ * Simple sliding window rate limiter.
+ * Tracks request timestamps and enforces a maximum requests per minute limit.
+ */
+class RateLimiter {
+  /** Maximum requests allowed per minute */
+  private readonly maxRequestsPerMinute: number;
+
+  /** Timestamps of recent requests (within the last minute) */
+  private requestTimestamps: number[] = [];
+
+  constructor(maxRequestsPerMinute: number) {
+    this.maxRequestsPerMinute = maxRequestsPerMinute;
+  }
+
+  /**
+   * Wait if necessary to respect rate limits, then record this request.
+   * Uses a sliding window approach - only counts requests from the last 60 seconds.
+   */
+  async waitForSlot(): Promise<void> {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+
+    // Remove timestamps older than 1 minute
+    this.requestTimestamps = this.requestTimestamps.filter(ts => ts > oneMinuteAgo);
+
+    // If we're at the limit, wait until the oldest request expires
+    if (this.requestTimestamps.length >= this.maxRequestsPerMinute) {
+      const oldestTimestamp = this.requestTimestamps[0];
+      const waitTime = oldestTimestamp - oneMinuteAgo + 10; // +10ms buffer
+
+      if (waitTime > 0) {
+        logger.debug(`Rate limit reached, waiting ${waitTime}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+
+        // Clean up again after waiting
+        const newNow = Date.now();
+        this.requestTimestamps = this.requestTimestamps.filter(ts => ts > newNow - 60000);
+      }
+    }
+
+    // Record this request
+    this.requestTimestamps.push(Date.now());
+  }
+
+  /**
+   * Get current rate limit status for debugging/monitoring.
+   */
+  getStatus(): { requestsInLastMinute: number; maxRequestsPerMinute: number } {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+    this.requestTimestamps = this.requestTimestamps.filter(ts => ts > oneMinuteAgo);
+
+    return {
+      requestsInLastMinute: this.requestTimestamps.length,
+      maxRequestsPerMinute: this.maxRequestsPerMinute
+    };
+  }
+}
+
+/** Global rate limiter instance - 120 requests per minute */
+const rateLimiter = new RateLimiter(120);
 
 /**
  * LACRM API v2 error response structure.
@@ -67,6 +135,9 @@ export class LacrmClient {
     functionName: string,
     parameters: Record<string, unknown> = {}
   ): Promise<T> {
+    // Enforce rate limiting before making the request
+    await rateLimiter.waitForSlot();
+
     const body = {
       Function: functionName,
       Parameters: parameters
@@ -154,6 +225,9 @@ export class LacrmClient {
     parameters: Record<string, unknown>,
     file: { name: string; content: Uint8Array; mimeType: string }
   ): Promise<T> {
+    // Enforce rate limiting before making the request
+    await rateLimiter.waitForSlot();
+
     const formData = new FormData();
     formData.append('Function', functionName);
     formData.append('Parameters', JSON.stringify(parameters));
