@@ -1,10 +1,10 @@
 {
-  "name": "lacrm-mcp",
+  "name": "@optimizeoverseas/lacrm-mcp",
   "version": "1.0.0",
   "description": "MCP server for Less Annoying CRM - 83 tools for contacts, pipelines, tasks, events, and more",
   "type": "module",
   "bin": {
-    "lacrm-mcp": "./build/index.js"
+    "lacrm-mcp": "build/index.js"
   },
   "files": [
     "build"
