@@ -277,6 +277,16 @@ The tools provide clear error messages when required fields are missing.
 
 This MCP server wraps the [Less Annoying CRM API v2](https://www.lessannoyingcrm.com/developer/reference-v2). All API calls are made to `https://api.lessannoyingcrm.com/v2/`.
 
+## Rate Limiting
+
+The MCP server enforces rate limiting to protect LACRM's API:
+
+- **Limit**: 120 requests per minute (sliding window)
+- **Behavior**: If the limit is reached, requests automatically wait until a slot is available
+- **No configuration needed**: Rate limiting is always active
+
+This ensures that even aggressive AI usage won't overwhelm LACRM's servers.
+
 ## Security
 
 ### Authentication
