@@ -228,7 +228,7 @@ Supports advanced filters for custom fields.`,
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         advanced_filters: z.array(z.object({
-          Name: z.string().describe('Field name to filter on (use get_pipeline_schema to see available fields)'),
+          Name: z.string().describe('Field name to filter on (use get_pipeline_item_schema to see available fields)'),
           Operation: z.enum([
             // Text field operations
             'Contains',
@@ -246,10 +246,10 @@ Supports advanced filters for custom fields.`,
             'IsLessThan'
           ]).describe(`Filter operation. Valid operations depend on field type:
 - Text fields: Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
-- Date fields: IsExactly, IsBetween, IsBefore, IsAfter, IsEmpty, IsNotEmpty
-- Numeric fields: IsExactly, IsGreaterThan, IsLessThan, IsBetween, IsEmpty, IsNotEmpty`),
+- Date fields: IsExactly, IsBetween, IsBefore, IsAfter
+- Numeric fields: IsExactly, IsGreaterThan, IsLessThan, Contains, IsEmpty, IsNotEmpty`),
           Value: z.unknown().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, null for IsEmpty/IsNotEmpty')
-        })).optional().describe('Advanced field filters. Call get_pipeline_schema first to see available field names.')
+        })).optional().describe('Advanced field filters. Call get_pipeline_item_schema first to see available field names.')
       }
     },
     async (args) => {
