@@ -216,7 +216,6 @@ Returns complete item details including status, contact info, and custom field v
       title: 'Search Pipeline Items',
       description: `Search for pipeline items within a specific pipeline.
 Use this to find items by status, user, or custom field values.
-
 Required: pipeline_id (use get_pipelines to find valid IDs).
 Supports advanced filters for custom fields.`,
       inputSchema: {
@@ -238,12 +237,17 @@ Supports advanced filters for custom fields.`,
             'IsEmpty',
             'IsNotEmpty',
             // Date field operations
+            'IsExactly',
             'IsBetween',
             'IsBefore',
             'IsAfter',
             // Numeric field operations
+            'IsExactly',
             'IsGreaterThan',
-            'IsLessThan'
+            'IsLessThan',
+            'Contains',
+            'IsEmpty',
+            'IsNotEmpty'
           ]).describe(`Filter operation. Valid operations depend on field type:
 - Text fields: Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
 - Date fields: IsExactly, IsBetween, IsBefore, IsAfter

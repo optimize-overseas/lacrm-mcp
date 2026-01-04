@@ -232,7 +232,7 @@ Use search_contacts first if you don't have the contact ID.`,
     async ({ contact_id }) => {
       try {
         const client = getClient();
-        const result = await client.call('GetContact', { ContactId: contact_id }) as { ContactId?: string; [key: string]: unknown };
+        const result = await client.call('GetContact', { ContactId: contact_id }) as { ContactId?: string;[key: string]: unknown };
 
         // Add contact URL for easy access
         if (result.ContactId) {
@@ -278,7 +278,7 @@ Maximum 10,000 results per call.`,
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetContactsById', params) as { Result?: Array<{ ContactId: string; [key: string]: unknown }> };
+        const result = await client.call('GetContactsById', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 
         // Add contact URLs to each result for easy access
         if (result.Result && Array.isArray(result.Result)) {
@@ -337,12 +337,17 @@ Returns array of matching contacts with pagination info.`,
             'IsEmpty',
             'IsNotEmpty',
             // Date field operations
+            'IsExactly',
             'IsBetween',
             'IsBefore',
             'IsAfter',
             // Numeric field operations
+            'IsExactly',
             'IsGreaterThan',
             'IsLessThan',
+            'Contains',
+            'IsEmpty',
+            'IsNotEmpty',
             // Group field operations
             'IsNotInAnyGroup',
             'IsInGroupList',
@@ -371,7 +376,7 @@ Returns array of matching contacts with pagination info.`,
         if (args.page) params.Page = args.page;
         if (args.advanced_filters) params.AdvancedFilters = args.advanced_filters;
 
-        const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string; [key: string]: unknown }> };
+        const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 
         // Add contact URLs to each result for easy access
         if (result.Result && Array.isArray(result.Result)) {
