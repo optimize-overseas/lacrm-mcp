@@ -327,10 +327,33 @@ Returns array of matching contacts with pagination info.`,
         max_results: z.number().optional().describe('Max results per page (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         advanced_filters: z.array(z.object({
-          Name: z.string().describe('Field name to filter on'),
-          Operation: z.string().describe('Filter operation: Contains, IsExactly, IsBetween, etc.'),
-          Value: z.unknown().describe('Value to filter by')
-        })).optional().describe('Advanced field filters')
+          Name: z.string().describe('Field name to filter on (e.g., FullName, Email, Phone, DateEntered, Group)'),
+          Operation: z.enum([
+            // Text field operations
+            'Contains',
+            'DoesNotContain',
+            'IsExactly',
+            'IsNot',
+            'IsEmpty',
+            'IsNotEmpty',
+            // Date field operations
+            'IsBetween',
+            'IsBefore',
+            'IsAfter',
+            // Numeric field operations
+            'IsGreaterThan',
+            'IsLessThan',
+            // Group field operations
+            'IsNotInAnyGroup',
+            'IsInGroupList',
+            'IsNotInGroupList'
+          ]).describe(`Filter operation. Valid operations depend on field type:
+- Text fields (FullName, Email, Phone, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
+- Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter, IsEmpty, IsNotEmpty
+- Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, IsBetween, IsEmpty, IsNotEmpty
+- Group field: IsNotInAnyGroup, IsInGroupList, IsNotInGroupList`),
+          Value: z.unknown().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, Array of UIDs for group list ops, null for IsEmpty/IsNotEmpty')
+        })).optional().describe('Advanced field filters. Call get_custom_fields first to see available field names.')
       }
     },
     async (args) => {
