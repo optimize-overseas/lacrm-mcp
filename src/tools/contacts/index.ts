@@ -349,11 +349,11 @@ Returns array of matching contacts with pagination info.`,
             'IsNotInGroupList'
           ]).describe(`Filter operation. Valid operations depend on field type:
 - Text fields (FullName, Email, Phone, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
-- Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter, IsEmpty, IsNotEmpty
-- Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, IsBetween, IsEmpty, IsNotEmpty
+- Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter
+- Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, Contains, IsEmpty, IsNotEmpty
 - Group field: IsNotInAnyGroup, IsInGroupList, IsNotInGroupList`),
           Value: z.unknown().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, Array of UIDs for group list ops, null for IsEmpty/IsNotEmpty')
-        })).optional().describe('Advanced field filters. Call get_custom_fields first to see available field names.')
+        })).optional().describe('Advanced field filters. Call get_contact_schema (for contacts) or get_company_schema (for companies) first to see available field names.')
       }
     },
     async (args) => {
