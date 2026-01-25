@@ -220,11 +220,10 @@ Use search_contacts or get_contact to find valid contact IDs before deleting.`,
     'get_contact',
     {
       title: 'Get Contact',
-      description: `Retrieve a single contact or company by ID with all fields.
-Use this tool to get complete details for a specific contact including custom fields.
+      description: `Retrieve a single contact or company by ID.
+Use this when you already have a ContactId and need the record.
 
-Returns full contact data: name, email, phone, address, company, custom fields, timestamps, etc.
-Use search_contacts first if you don't have the contact ID.`,
+NOTE: search_contacts returns the same full data for each match. Only use get_contact when you have an ID but not the data (e.g., from a webhook or external reference).`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId of the record to retrieve')
       }
@@ -257,10 +256,9 @@ Use search_contacts first if you don't have the contact ID.`,
     {
       title: 'Get Contacts By IDs',
       description: `Retrieve multiple contacts or companies by their IDs.
-Use this tool when you have a list of contact IDs and need details for all of them.
-More efficient than calling get_contact multiple times.
+Use this when you have a list of ContactIds (e.g., from webhooks or external references).
 
-Returns array of contact objects with pagination info.
+RETURNS FULL DATA: Each result includes all contact fields - same as search_contacts or get_contact.
 Maximum 10,000 results per call.`,
       inputSchema: {
         contact_ids: z.array(z.string()).describe('Array of ContactIds to retrieve'),
@@ -309,6 +307,8 @@ Maximum 10,000 results per call.`,
       description: `Search for contacts and companies with filters and sorting.
 Use this tool to find contacts by name, email, or other criteria.
 
+RETURNS FULL DATA: Each result includes all contact fields (name, email, phone, address, company, custom fields, timestamps, etc.) - no need to call get_contact afterward.
+
 Supports:
 - Free text search across all fields
 - Filter by contacts only, companies only, or both
@@ -316,8 +316,7 @@ Supports:
 - Sort by name, date created, last update, or relevance
 - Advanced filters for custom fields
 
-Use get_custom_fields to learn available custom field names for advanced filtering.
-Returns array of matching contacts with pagination info.`,
+Use get_custom_fields to learn available custom field names for advanced filtering.`,
       inputSchema: {
         search_terms: z.string().optional().describe('Text to search across all fields'),
         record_type: z.enum(['Contacts', 'Companies']).optional().describe('Filter by record type'),

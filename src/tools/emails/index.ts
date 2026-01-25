@@ -81,7 +81,9 @@ The email is attached to the specified contacts' history.`,
     {
       title: 'Get Email',
       description: `Retrieve a single logged email by ID.
-Returns complete email details including sender, recipients, and body.`,
+Use this when you already have an EmailId and need the record.
+
+NOTE: search_emails returns the same full data for each match. Only use get_email when you have an ID but not the data.`,
       inputSchema: {
         email_id: z.string().describe('The EmailId to retrieve')
       }
@@ -108,7 +110,9 @@ Returns complete email details including sender, recipients, and body.`,
     {
       title: 'Search Emails',
       description: `Search for logged emails with optional filters.
-Use this to find emails by date range, user, or contact.`,
+Use this to find emails by date range, user, or contact.
+
+RETURNS FULL DATA: Each result includes all email fields (sender, recipients, subject, body, timestamps, etc.) - no need to call get_email afterward.`,
       inputSchema: {
         date_start: z.string().optional().describe('Return emails after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return emails before this date (ISO 8601)'),
@@ -153,7 +157,8 @@ Use this to find emails by date range, user, or contact.`,
     'get_emails_attached_to_contact',
     {
       title: 'Get Emails For Contact',
-      description: `Retrieve all logged emails for a specific contact.`,
+      description: `Retrieve all logged emails for a specific contact.
+RETURNS FULL DATA: Each result includes all email fields - no need to call get_email afterward.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get emails for'),
         max_results: z.number().optional().describe('Max results (default 500)'),

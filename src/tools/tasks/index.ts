@@ -157,7 +157,9 @@ Required: task_id.`,
     {
       title: 'Get Task',
       description: `Retrieve a single task by ID.
-Returns complete task details including completion status and linked contact info.`,
+Use this when you already have a TaskId and need the record.
+
+NOTE: search_tasks returns the same full data for each match. Only use get_task when you have an ID but not the data.`,
       inputSchema: {
         task_id: z.string().describe('The TaskId to retrieve')
       }
@@ -185,6 +187,8 @@ Returns complete task details including completion status and linked contact inf
       title: 'Search Tasks',
       description: `Search for tasks within a date range.
 Use this tool to find tasks by date, user, contact, or completion status.
+
+RETURNS FULL DATA: Each result includes all task fields (name, due date, description, completion status, linked contact, etc.) - no need to call get_task afterward.
 
 Required: start_date, end_date.
 Supports filtering by completion status (Both, Incomplete, Complete).`,
@@ -234,7 +238,7 @@ Supports filtering by completion status (Both, Incomplete, Complete).`,
     {
       title: 'Get Tasks For Contact',
       description: `Retrieve all tasks for a specific contact.
-Use this tool to see all tasks associated with a contact.`,
+RETURNS FULL DATA: Each result includes all task fields - no need to call get_task afterward.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get tasks for'),
         max_results: z.number().optional().describe('Max results (default 500)'),
