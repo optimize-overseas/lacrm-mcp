@@ -180,7 +180,9 @@ Required: event_id.`,
     {
       title: 'Get Event',
       description: `Retrieve a single calendar event by ID.
-Returns complete event details including attendees, recurrence info, and linked contacts.`,
+Use this when you already have an EventId and need the record.
+
+NOTE: search_events returns the same full data for each match. Only use get_event when you have an ID but not the data.`,
       inputSchema: {
         event_id: z.string().describe('The EventId to retrieve')
       }
@@ -209,13 +211,13 @@ Returns complete event details including attendees, recurrence info, and linked 
       description: `Search for calendar events within a date range.
 Use this tool to find events by date, user, calendar, or contact.
 
+RETURNS FULL DATA: Each result includes all event fields (name, dates, location, attendees, recurrence, etc.) - no need to call get_event afterward.
+
 Supports filtering by:
 - Date range (start_date and end_date)
 - Specific users
 - Specific calendars
-- Specific contact
-
-Returns paginated results with event details.`,
+- Specific contact`,
       inputSchema: {
         start_date: z.string().optional().describe('Start of date range (ISO 8601)'),
         end_date: z.string().optional().describe('End of date range (ISO 8601)'),
@@ -261,7 +263,7 @@ Returns paginated results with event details.`,
     {
       title: 'Get Events For Contact',
       description: `Retrieve all calendar events for a specific contact.
-Use this tool when you need to see all events associated with a contact.`,
+RETURNS FULL DATA: Each result includes all event fields - no need to call get_event afterward.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get events for'),
         max_results: z.number().optional().describe('Max results (default 500)'),

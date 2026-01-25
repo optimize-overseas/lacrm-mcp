@@ -136,7 +136,9 @@ Required: note_id.`,
     {
       title: 'Get Note',
       description: `Retrieve a single note by ID.
-Returns complete note details including content, timestamps, and linked metadata.`,
+Use this when you already have a NoteId and need the record.
+
+NOTE: search_notes returns the same full data for each match. Only use get_note when you have an ID but not the data.`,
       inputSchema: {
         note_id: z.string().describe('The NoteId to retrieve')
       }
@@ -165,8 +167,9 @@ Returns complete note details including content, timestamps, and linked metadata
       description: `Search for notes with optional date and user filters.
 Use this tool to find notes across all contacts or for specific users.
 
-Supports filtering by date range, user, and specific contact.
-Results sorted by note date.`,
+RETURNS FULL DATA: Each result includes all note fields (content, timestamps, linked contact, etc.) - no need to call get_note afterward.
+
+Supports filtering by date range, user, and specific contact.`,
       inputSchema: {
         date_start: z.string().optional().describe('Return notes on or after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return notes on or before this date (ISO 8601)'),
@@ -210,7 +213,7 @@ Results sorted by note date.`,
     {
       title: 'Get Notes For Contact',
       description: `Retrieve all notes for a specific contact.
-Use this tool to see the complete note history for a contact.`,
+RETURNS FULL DATA: Each result includes all note fields - no need to call get_note afterward.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get notes for'),
         max_results: z.number().optional().describe('Max results (default 500)'),

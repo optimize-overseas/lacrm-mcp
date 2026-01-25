@@ -188,7 +188,9 @@ Returns count of processed and skipped items.`,
     {
       title: 'Get Pipeline Item',
       description: `Retrieve a single pipeline item by ID.
-Returns complete item details including status, contact info, and custom field values.`,
+Use this when you already have a PipelineItemId and need the record.
+
+NOTE: search_pipeline_items returns the same full data for each match. Only use get_pipeline_item when you have an ID but not the data.`,
       inputSchema: {
         pipeline_item_id: z.string().describe('The PipelineItemId to retrieve')
       }
@@ -216,6 +218,9 @@ Returns complete item details including status, contact info, and custom field v
       title: 'Search Pipeline Items',
       description: `Search for pipeline items within a specific pipeline.
 Use this to find items by status, user, or custom field values.
+
+RETURNS FULL DATA: Each result includes all pipeline item fields (status, contact info, custom fields, timestamps, etc.) - no need to call get_pipeline_item afterward.
+
 Required: pipeline_id (use get_pipelines to find valid IDs).
 Supports advanced filters for custom fields.`,
       inputSchema: {
@@ -291,6 +296,7 @@ Supports advanced filters for custom fields.`,
     {
       title: 'Get Pipeline Items For Contact',
       description: `Retrieve all pipeline items for a specific contact.
+RETURNS FULL DATA: Each result includes all pipeline item fields - no need to call get_pipeline_item afterward.
 Returns items across all pipelines that the contact is in.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get pipeline items for'),
