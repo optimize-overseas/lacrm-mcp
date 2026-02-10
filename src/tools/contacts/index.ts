@@ -233,9 +233,17 @@ NOTE: search_contacts returns the same full data for each match. Only use get_co
         const client = getClient();
         const result = await client.call('GetContact', { ContactId: contact_id }) as { ContactId?: string;[key: string]: unknown };
 
-        // Add contact URL for easy access
+        // Put ContactUrl first so it's visible even if response is truncated
         if (result.ContactId) {
-          result.ContactUrl = `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${result.ContactId}`;
+          const { ContactId, ...rest } = result;
+          const reordered = {
+            ContactId,
+            ContactUrl: `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${ContactId}`,
+            ...rest
+          };
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(reordered, null, 2) }]
+          };
         }
 
         return {
@@ -278,13 +286,19 @@ Maximum 10,000 results per call.`,
 
         const result = await client.call('GetContactsById', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 
-        // Add contact URLs to each result for easy access
+        // Put ContactUrl first in each contact so it's visible even if response is truncated
         if (result.Result && Array.isArray(result.Result)) {
-          for (const contact of result.Result) {
+          result.Result = result.Result.map(contact => {
             if (contact.ContactId) {
-              contact.ContactUrl = `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${contact.ContactId}`;
+              const { ContactId, ...rest } = contact;
+              return {
+                ContactId,
+                ContactUrl: `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${ContactId}`,
+                ...rest
+              };
             }
-          }
+            return contact;
+          });
         }
 
         return {
@@ -323,7 +337,7 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         owner_filter: z.array(z.string()).optional().describe('Filter by assigned user IDs'),
         sort_by: z.enum(['Relevance', 'FirstName', 'LastName', 'CompanyName', 'DateCreated', 'LastUpdate']).optional(),
         sort_direction: z.enum(['Ascending', 'Descending']).optional(),
-        max_results: z.number().optional().describe('Max results per page (default 500, max 10000)'),
+        max_results: z.number().optional().describe('Max results per page (default 25, max 10000). Keep low for name searches.'),
         page: z.number().optional().describe('Page number for pagination'),
         advanced_filters: z.array(z.object({
           Name: z.string().describe('Field name to filter on (e.g., FullName, Email, Phone, DateEntered, Group)'),
@@ -371,19 +385,26 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         if (args.owner_filter) params.OwnerFilter = args.owner_filter;
         if (args.sort_by) params.SortBy = args.sort_by;
         if (args.sort_direction) params.SortDirection = args.sort_direction;
-        if (args.max_results) params.MaxNumberOfResults = args.max_results;
+        // Default to 25 results to keep responses within token limits for LLM consumption
+        params.MaxNumberOfResults = args.max_results ?? 25;
         if (args.page) params.Page = args.page;
         if (args.advanced_filters) params.AdvancedFilters = args.advanced_filters;
 
         const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 
-        // Add contact URLs to each result for easy access
+        // Put ContactUrl first in each contact so it's visible even if response is truncated
         if (result.Result && Array.isArray(result.Result)) {
-          for (const contact of result.Result) {
+          result.Result = result.Result.map(contact => {
             if (contact.ContactId) {
-              contact.ContactUrl = `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${contact.ContactId}`;
+              const { ContactId, ...rest } = contact;
+              return {
+                ContactId,
+                ContactUrl: `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${ContactId}`,
+                ...rest
+              };
             }
-          }
+            return contact;
+          });
         }
 
         return {
