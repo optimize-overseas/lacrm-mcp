@@ -107,8 +107,9 @@ Returns the new ContactId on success.`,
         }
 
         const result = await client.call<{ ContactId: string }>('CreateContact', params);
+        const contactUrl = `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${result.ContactId}`;
         return {
-          content: [{ type: 'text' as const, text: `Contact created successfully. ContactId: ${result.ContactId}` }]
+          content: [{ type: 'text' as const, text: `Contact created successfully. ContactId: ${result.ContactId}\nContactUrl: ${contactUrl}` }]
         };
       } catch (error) {
         return {
