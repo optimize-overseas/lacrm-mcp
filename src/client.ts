@@ -151,7 +151,8 @@ export class LacrmClient {
         'Content-Type': 'application/json',
         'Authorization': this.apiKey
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(180000)
     });
 
     if (!response.ok) {
