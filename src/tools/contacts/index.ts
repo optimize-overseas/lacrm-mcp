@@ -173,9 +173,20 @@ Only include fields you want to change - other fields remain unchanged.`,
           Object.assign(params, args.custom_fields);
         }
 
+        // Detect empty update — no fields besides ContactId were provided.
+        // This typically happens when the caller uses the wrong parameter name
+        // (e.g., "company" instead of "company_name"), which Zod silently strips.
+        const updateFields = Object.keys(params).filter(k => k !== 'ContactId');
+        if (updateFields.length === 0) {
+          return {
+            content: [{ type: 'text' as const, text: `Error: No valid fields to update were provided. Available fields: name, assigned_to, is_company, email, phone, company_name, job_title, address, website, background_info, birthday, custom_fields. Note: use "company_name" (not "company") for the company field.` }],
+            isError: true
+          };
+        }
+
         await client.call('EditContact', params);
         return {
-          content: [{ type: 'text' as const, text: `Contact ${args.contact_id} updated successfully.` }]
+          content: [{ type: 'text' as const, text: `Contact ${args.contact_id} updated successfully. Fields changed: ${updateFields.join(', ')}` }]
         };
       } catch (error) {
         return {
