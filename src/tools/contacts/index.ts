@@ -329,7 +329,9 @@ Supports:
 - Filter by contacts only, companies only, or both
 - Filter by assigned user
 - Sort by name, date created, last update, or relevance
-- Advanced filters for custom fields
+- Advanced filters on standard and custom fields
+
+IMPORTANT: For geographic searches (by state, city, zip), use advanced_filters with the address fields (AddressState, AddressCity, AddressZip, etc.) instead of search_terms. Free-text search_terms scans all fields and can be very slow on broad terms.
 
 Use get_custom_fields to learn available custom field names for advanced filtering.`,
       inputSchema: {
@@ -341,7 +343,7 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         max_results: z.number().optional().describe('Max results per page (default 25, max 10000). Keep low for name searches.'),
         page: z.number().optional().describe('Page number for pagination'),
         advanced_filters: z.array(z.object({
-          Name: z.string().describe('Field name to filter on (e.g., FullName, Email, Phone, DateEntered, Group)'),
+          Name: z.string().describe('Field name to filter on. Standard fields available on all accounts: Group, FullName, FirstName, MiddleName, LastName, CompanyName, CompanyId, Salutation, Suffix, DateEntered, DateUpdated, Email, AddressStreet, AddressCity, AddressState, AddressZip, AddressCountry, Phone, Website, Title, BackgroundInfo, Industry, Birthday, Age, NumEmp, Cal, Pipeline. Custom fields use Custom_<id> format — call get_custom_fields to discover them.'),
           Operation: z.enum([
             // Text field operations
             'Contains',
@@ -367,7 +369,7 @@ Use get_custom_fields to learn available custom field names for advanced filteri
             'IsInGroupList',
             'IsNotInGroupList'
           ]).describe(`Filter operation. Valid operations depend on field type:
-- Text fields (FullName, Email, Phone, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
+- Text fields (FullName, Email, Phone, AddressState, AddressCity, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
 - Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter
 - Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, Contains, IsEmpty, IsNotEmpty
 - Group field: IsNotInAnyGroup, IsInGroupList, IsNotInGroupList`),
