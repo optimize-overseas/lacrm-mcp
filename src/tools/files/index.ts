@@ -20,6 +20,7 @@ import { readFileSync } from 'fs';
 import { basename, normalize } from 'path';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 /**
  * Validate file path for security.
@@ -185,9 +186,11 @@ NOTE: Does not include files attached via File Link custom fields.`,
         const params: Record<string, unknown> = { ContactId: contact_id };
         if (include_versions !== undefined) params.ReturnPreviousVersions = include_versions;
 
-        const result = await client.call('GetFilesAttachedToContact', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetFilesAttachedToContact', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{ type: 'text' as const, text: summarizeResults(items, hasMore, []) }]
         };
       } catch (error) {
         return {

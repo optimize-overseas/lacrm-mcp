@@ -261,9 +261,16 @@ RETURNS FULL DATA: Each result includes all task fields - no need to call get_ta
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetTasksAttachedToContact', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetTasksAttachedToContact', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_completion', path: 'IsComplete' }
+            ])
+          }]
         };
       } catch (error) {
         return {
