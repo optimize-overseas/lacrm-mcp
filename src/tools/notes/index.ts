@@ -19,6 +19,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 export function registerNoteTools(server: McpServer): void {
   // create_note
@@ -194,9 +195,11 @@ Supports filtering by date range, user, and specific contact.`,
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
 
-        const result = await client.call('GetNotes', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetNotes', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{ type: 'text' as const, text: summarizeResults(items, hasMore, []) }]
         };
       } catch (error) {
         return {
@@ -228,9 +231,11 @@ RETURNS FULL DATA: Each result includes all note fields - no need to call get_no
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetNotesAttachedToContact', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetNotesAttachedToContact', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{ type: 'text' as const, text: summarizeResults(items, hasMore, []) }]
         };
       } catch (error) {
         return {

@@ -18,6 +18,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 const emailAddressSchema = z.object({
   Address: z.string().describe('Email address'),
@@ -139,9 +140,16 @@ RETURNS FULL DATA: Each result includes all email fields (sender, recipients, su
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
 
-        const result = await client.call('GetEmails', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetEmails', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_direction', path: 'UserIsSender' }
+            ])
+          }]
         };
       } catch (error) {
         return {
@@ -173,9 +181,16 @@ RETURNS FULL DATA: Each result includes all email fields - no need to call get_e
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetEmailsAttachedToContact', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetEmailsAttachedToContact', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_direction', path: 'UserIsSender' }
+            ])
+          }]
         };
       } catch (error) {
         return {
