@@ -17,6 +17,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 export function registerGroupMembershipTools(server: McpServer): void {
   // add_contact_to_group
@@ -185,9 +186,16 @@ Use either group_id or group_name to identify the group (not both).`,
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
 
-        const result = await client.call('GetContactsInGroup', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetContactsInGroup', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_assigned_to', path: 'AssignedTo' }
+            ])
+          }]
         };
       } catch (error) {
         return {

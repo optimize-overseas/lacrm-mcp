@@ -20,6 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 export function registerPipelineItemTools(server: McpServer): void {
   // create_pipeline_item
@@ -277,9 +278,16 @@ Supports advanced filters for custom fields.`,
         if (args.page) params.Page = args.page;
         if (args.advanced_filters) params.AdvancedFilters = args.advanced_filters;
 
-        const result = await client.call('GetPipelineItems', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetPipelineItems', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_status', path: 'StatusMetaData.Name' }
+            ])
+          }]
         };
       } catch (error) {
         return {
@@ -312,9 +320,17 @@ Returns items across all pipelines that the contact is in.`,
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetPipelineItemsAttachedToContact', params);
+        const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetPipelineItemsAttachedToContact', params);
+        const items = Array.isArray(result) ? result : (result.Results || []);
+        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(items, hasMore, [
+              { label: 'by_pipeline', path: 'PipelineMetaData.Name' },
+              { label: 'by_status', path: 'StatusMetaData.Name' }
+            ])
+          }]
         };
       } catch (error) {
         return {
