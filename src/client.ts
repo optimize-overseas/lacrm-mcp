@@ -123,19 +123,30 @@ export class LacrmClient {
    * quote characters) instead of `"86441"` (a clean string). The LACRM API
    * rejects values with embedded quotes as invalid UIDs.
    *
-   * Only applies to parameters whose key ends with "Id" (single ID) or
-   * "Ids" (array of IDs). Other string parameters (notes, names, etc.)
-   * are left untouched.
+   * Only applies to parameters whose key ends with "Id" (single ID),
+   * "Ids" (array of IDs), or "IdList" (array of IDs). Other string
+   * parameters (notes, names, etc.) are left untouched.
    */
   private sanitizeIdParameters(params: Record<string, unknown>): Record<string, unknown> {
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'string' && key.endsWith('Id')) {
-        sanitized[key] = value.replace(/^["']+|["']+$/g, '');
-      } else if (Array.isArray(value) && key.endsWith('Ids')) {
-        sanitized[key] = value.map(v =>
-          typeof v === 'string' ? v.replace(/^["']+|["']+$/g, '') : v
-        );
+        const cleaned = value.replace(/^["']+|["']+$/g, '');
+        if (cleaned !== value) {
+          logger.warn(`Stripped quotes from ${key}: ${value} -> ${cleaned}`);
+        }
+        sanitized[key] = cleaned;
+      } else if (Array.isArray(value) && (key.endsWith('Ids') || key.endsWith('IdList'))) {
+        sanitized[key] = value.map(v => {
+          if (typeof v === 'string') {
+            const cleaned = v.replace(/^["']+|["']+$/g, '');
+            if (cleaned !== v) {
+              logger.warn(`Stripped quotes from ${key} element: ${v} -> ${cleaned}`);
+            }
+            return cleaned;
+          }
+          return v;
+        });
       } else {
         sanitized[key] = value;
       }
@@ -259,7 +270,7 @@ export class LacrmClient {
 
     const formData = new FormData();
     formData.append('Function', functionName);
-    formData.append('Parameters', JSON.stringify(parameters));
+    formData.append('Parameters', JSON.stringify(this.sanitizeIdParameters(parameters)));
 
     // Convert to ArrayBuffer to ensure compatibility with Blob constructor
     const arrayBuffer = file.content.buffer.slice(
