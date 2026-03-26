@@ -116,6 +116,34 @@ export class LacrmClient {
   }
 
   /**
+   * Strip surrounding quote characters from ID parameters.
+   *
+   * Defense-in-depth against LLMs that over-quote ID values.
+   * For example, an AI may pass `"\"86441\""` (a string containing literal
+   * quote characters) instead of `"86441"` (a clean string). The LACRM API
+   * rejects values with embedded quotes as invalid UIDs.
+   *
+   * Only applies to parameters whose key ends with "Id" (single ID) or
+   * "Ids" (array of IDs). Other string parameters (notes, names, etc.)
+   * are left untouched.
+   */
+  private sanitizeIdParameters(params: Record<string, unknown>): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === 'string' && key.endsWith('Id')) {
+        sanitized[key] = value.replace(/^["']+|["']+$/g, '');
+      } else if (Array.isArray(value) && key.endsWith('Ids')) {
+        sanitized[key] = value.map(v =>
+          typeof v === 'string' ? v.replace(/^["']+|["']+$/g, '') : v
+        );
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
+  }
+
+  /**
    * Call a LACRM API function.
    *
    * The LACRM API uses a unique pattern where all calls POST to the same URL
@@ -140,7 +168,7 @@ export class LacrmClient {
 
     const body = {
       Function: functionName,
-      Parameters: parameters
+      Parameters: this.sanitizeIdParameters(parameters)
     };
 
     logger.debug(`API call: ${functionName}`, { parameters });
