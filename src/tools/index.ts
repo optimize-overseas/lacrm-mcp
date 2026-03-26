@@ -1,10 +1,12 @@
 /**
  * Tool Registry for LACRM MCP Server
  *
- * Central registration point for all 75 MCP tools organized by domain:
+ * Central registration point for all 83 MCP tools organized by domain:
  *
- * Discovery Tools (5):
- *   - get_custom_fields, get_pipelines, get_groups, get_users, get_calendars
+ * Discovery Tools (10):
+ *   - get_workflow_guide, get_custom_fields, get_pipeline_custom_fields
+ *   - get_pipelines, get_groups, get_users, get_calendars
+ *   - get_contact_schema, get_company_schema, get_pipeline_item_schema
  *
  * Contact Tools (6):
  *   - create_contact, edit_contact, delete_contact
@@ -46,9 +48,9 @@
  *   - Custom Fields: create, edit, delete, get (4)
  *   - Groups: create, edit, delete, get (4)
  *   - Pipelines: create, edit, delete, get (4)
- *   - Pipeline Statuses: create, edit, delete, get (4)
- *   - Teams: create, edit, delete, get, get_all (5)
- *   - Webhooks: create, delete, get, get_all (4)
+ *   - Pipeline Statuses: create, edit, delete, get_pipeline_statuses (4)
+ *   - Teams: create, edit, delete, get, get_teams (5)
+ *   - Webhooks: create, delete, get, get_webhooks (4)
  *
  * @module tools
  */
