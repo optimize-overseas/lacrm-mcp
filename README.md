@@ -2,9 +2,21 @@
 
 A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 83 tools.
 
+Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@optimizeoverseas/lacrm-mcp) on npm.
+
 ## Installation
 
+### From npm (recommended for production)
+
 ```bash
+npm install -g @optimizeoverseas/lacrm-mcp
+```
+
+### From source
+
+```bash
+git clone https://github.com/optimize-overseas/lacrm-mcp.git
+cd lacrm-mcp
 npm install
 npm run build
 ```
@@ -64,6 +76,58 @@ This server provides workflow resources that help AI clients understand how to u
 | `lacrm://workflows/pipeline-items` | Detailed workflow for creating and editing pipeline items |
 
 **Usage**: Call `resources/list` to discover available resources, then `resources/read` with the URI to get the content.
+
+## Response Format
+
+### Summary Envelopes
+
+All list-returning tools wrap their results in a structured `{summary, results}` envelope. The summary provides machine-counted totals and categorical breakdowns, which prevents LLMs from miscounting items in large JSON arrays -- a known failure mode when datasets exceed approximately 50 items.
+
+**Envelope structure:**
+
+```json
+{
+  "summary": {
+    "total": 15,
+    "has_more_results": false,
+    "by_status": {
+      "Active": 10,
+      "Closed - Won": 3,
+      "Closed - Lost": 2
+    }
+  },
+  "results": [
+    { "...full pipeline item data..." },
+    { "...full pipeline item data..." }
+  ]
+}
+```
+
+The `summary` object always includes:
+- `total` -- the exact count of items in the `results` array
+- `has_more_results` -- whether the API has additional pages beyond this response
+
+Depending on the tool, the summary may also include one or more categorical breakdowns that group items by a relevant field.
+
+### Tools with Summary Envelopes
+
+| Tool | Breakdowns | Description |
+|------|------------|-------------|
+| `search_contacts` | `by_assigned_to` | Counts by assigned user |
+| `search_pipeline_items` | `by_status` | Counts by pipeline status name |
+| `get_pipeline_items_attached_to_contact` | `by_pipeline`, `by_status` | Counts by pipeline name and status name |
+| `search_tasks` | `by_completion` | Counts by completion (Yes/No) |
+| `get_tasks_attached_to_contact` | `by_completion` | Counts by completion (Yes/No) |
+| `search_emails` | `by_direction` | Counts by send direction (Yes/No for UserIsSender) |
+| `get_emails_attached_to_contact` | `by_direction` | Counts by send direction (Yes/No for UserIsSender) |
+| `search_events` | (total only) | Total count and pagination status |
+| `get_events_attached_to_contact` | (total only) | Total count and pagination status |
+| `search_notes` | (total only) | Total count and pagination status |
+| `get_notes_attached_to_contact` | (total only) | Total count and pagination status |
+| `get_files_attached_to_contact` | (total only) | Total count and pagination status |
+| `get_contacts_in_group` | `by_assigned_to` | Counts by assigned user |
+
+Single-record tools (e.g., `get_contact`, `get_task`, `get_pipeline_item`) return the raw API response directly without a summary envelope.
 
 ## Available Tools
 
@@ -294,6 +358,18 @@ This ensures that even aggressive AI usage won't overwhelm LACRM's servers.
 - API key is loaded from `LACRM_API_KEY` environment variable (recommended)
 - Fallback to config file at `~/.lacrm-config.json`
 - API key is never logged or exposed in error messages
+
+### ID Parameter Sanitization
+
+The server includes defense-in-depth sanitization for all ID parameters. LLMs sometimes over-quote values, passing `"\"86441\""` (a string with embedded literal quotes) instead of the clean string `"86441"`. The LACRM API rejects values with embedded quotes as invalid UIDs.
+
+To guard against this, the client automatically strips surrounding single and double quote characters from any parameter whose key ends with:
+
+- `*Id` -- single ID parameters (e.g., `ContactId`, `PipelineId`)
+- `*Ids` -- array-of-ID parameters (e.g., `ContactIds`)
+- `*IdList` -- ID list parameters
+
+When sanitization occurs, a warning is logged so the issue can be traced. Other string parameters (names, notes, descriptions, etc.) are never modified.
 
 ### File Upload Security
 
