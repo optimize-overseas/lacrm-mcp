@@ -19,6 +19,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
+import { summarizeResults } from '../../utils/summarize.js';
 
 // Shared schemas for contact data
 const emailSchema = z.object({
@@ -407,22 +408,25 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 
         // Put ContactUrl first in each contact so it's visible even if response is truncated
-        if (result.Result && Array.isArray(result.Result)) {
-          result.Result = result.Result.map(contact => {
-            if (contact.ContactId) {
-              const { ContactId, ...rest } = contact;
-              return {
-                ContactId,
-                ContactUrl: `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${ContactId}`,
-                ...rest
-              };
-            }
-            return contact;
-          });
-        }
+        const contactsArray = (result.Result || []).map(contact => {
+          if (contact.ContactId) {
+            const { ContactId, ...rest } = contact;
+            return {
+              ContactId,
+              ContactUrl: `https://account.lessannoyingcrm.com/app/View_Contact?ContactId=${ContactId}`,
+              ...rest
+            };
+          }
+          return contact;
+        });
 
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }]
+          content: [{
+            type: 'text' as const,
+            text: summarizeResults(contactsArray, false, [
+              { label: 'by_assigned_to', path: 'AssignedTo' }
+            ])
+          }]
         };
       } catch (error) {
         return {
