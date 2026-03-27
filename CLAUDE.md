@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`@optimizeoverseas/lacrm-mcp` is an MCP (Model Context Protocol) server for Less Annoying CRM. It exposes 83 tools across contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings.
+`@optimizeoverseas/lacrm-mcp` is an MCP (Model Context Protocol) server for Less Annoying CRM (v1.3.0). It exposes 83 tools across contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings.
 
 Used by Allegiance AI (via OpenClaw + enforcement wrapper at `optimize-overseas/lacrmenforcement-wrapper`). Published to npm, deployed globally on the production VM.
 
@@ -42,6 +42,8 @@ src/
     errors.ts       - Error classes + formatErrorForLLM()
     logger.ts       - stderr-only logger (stdout is MCP protocol)
     summarize.ts    - summarizeResults() for list-returning tools
+    resolve-names.ts - Name-to-ID resolution (status, user, calendar, custom fields) (v1.3.0)
+    count-all.ts    - Auto-pagination for count_only mode (v1.3.0)
   types/
     common.ts       - Shared types (Uid, ApiResponse, ToolResult, etc.)
     index.ts        - Re-exports
@@ -52,6 +54,9 @@ src/
 - **Tool registration**: Each domain has a `register*Tools(server)` function called from `tools/index.ts`
 - **API calls**: All go through `LacrmClient.call()` which handles rate limiting (120 req/min) and ID sanitization
 - **List responses**: Tools returning lists use `summarizeResults()` to wrap in `{summary, results}` envelope
+- **Name resolution** (v1.3.0): Tools accepting ID filters also accept name-based alternatives (e.g., `status_name` instead of `status_id`). Resolution uses functions in `utils/resolve-names.ts` which query the API at runtime. All lookups are case-insensitive. Name params are mutually exclusive with their ID counterparts.
+- **Count mode** (v1.3.0): All search/list tools accept `count_only: true`. When enabled, `countAll()` from `utils/count-all.ts` auto-paginates all pages (100-page safety cap) and returns `{total, breakdowns}` with no results array.
+- **Flat-string shortcuts** (v1.3.0): `create_contact` and `edit_contact` accept `email_address`, `phone_number`, `website_url` as simple strings, auto-converted to the array-of-objects format the API expects. Mutually exclusive with the array versions.
 - **Error handling**: All tool handlers catch errors and return `formatErrorForLLM(error)` with `isError: true`
 - **Logging**: Use `logger.*` from `utils/logger.ts` -- NEVER use `console.log` (corrupts MCP stdio protocol)
 
@@ -81,3 +86,6 @@ ssh allegiance 'npm install -g @optimizeoverseas/lacrm-mcp@latest && systemctl -
 - All logging goes to stderr (stdout is the MCP JSON-RPC stream)
 - ID parameters are automatically sanitized to strip accidental quote characters
 - The enforcement wrapper runs between OpenClaw and this MCP server (see mcporter.json in allegiance-ai)
+- Name resolution parameters (v1.3.0) are always mutually exclusive with their ID-based counterparts -- providing both will error
+- `count_only` mode (v1.3.0) makes additional API calls to paginate all pages; the 100-page safety cap prevents runaway usage
+- Flat-string shortcuts (v1.3.0) on contacts are convenience sugar -- they are mutually exclusive with the array-form parameters

@@ -4,6 +4,18 @@ A Model Context Protocol (MCP) server for Less Annoying CRM that provides compre
 
 Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@optimizeoverseas/lacrm-mcp) on npm.
 
+**Current version: 1.3.0**
+
+## Key Features
+
+- **83 tools** covering contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings
+- **Name resolution**: Search tools accept human-readable names (status names, user names, calendar names, custom field names) and auto-resolve to IDs at runtime — no prerequisite lookup calls needed
+- **count_only mode**: All search/list tools support `count_only: true` which auto-paginates through all results and returns accurate totals with categorical breakdowns — no manual pagination required
+- **Flat-string shortcuts**: `email_address`, `phone_number`, `website_url` on contact create/edit auto-convert to the required array format
+- **Response summaries**: List-returning tools wrap results in `{summary, results}` envelopes with machine-counted totals and breakdowns
+- **ID sanitization**: Defense-in-depth stripping of accidental quote characters from ID parameters
+- **Rate limiting**: Client-side enforcement of 120 requests/minute with automatic waiting
+
 ## Installation
 
 ### From npm (recommended for production)
@@ -128,6 +140,127 @@ Depending on the tool, the summary may also include one or more categorical brea
 | `get_contacts_in_group` | `by_assigned_to` | Counts by assigned user |
 
 Single-record tools (e.g., `get_contact`, `get_task`, `get_pipeline_item`) return the raw API response directly without a summary envelope.
+
+## Name Resolution (v1.3.0)
+
+Many LACRM API parameters require internal IDs (status IDs, user IDs, calendar IDs, custom field IDs). In v1.3.0, name-based alternatives were added so the caller can pass human-readable names instead. The server resolves names to IDs at runtime by querying the LACRM API. All lookups are case-insensitive, and if a name cannot be resolved the error message lists all available options.
+
+These parameters are **instance-agnostic** -- they work with any LACRM account regardless of how statuses, users, calendars, or custom fields are configured.
+
+### Name Resolution Parameters
+
+| Parameter | Available On | Replaces (mutually exclusive) |
+|-----------|-------------|-------------------------------|
+| `status_name_filter` | `search_pipeline_items` | `status_filter` |
+| `status_name` | `create_pipeline_item`, `edit_pipeline_item` | `status_id` |
+| `user_name_filter` | `search_pipeline_items`, `search_tasks`, `search_events` | `user_filter` |
+| `calendar_name_filter` | `search_events` | `calendar_filter` |
+| `custom_field_names` | `create_contact`, `edit_contact`, `create_pipeline_item`, `edit_pipeline_item` | `custom_fields` |
+
+### How It Works
+
+1. The caller passes a name-based parameter (e.g., `status_name: "Active"`)
+2. The server queries the relevant API endpoint (e.g., `GetPipelineStatuses`)
+3. A case-insensitive match resolves the name to its ID
+4. The resolved ID is used for the actual API call
+5. If no match is found, an error lists all available names
+
+For `user_name_filter`, matching works against full name ("First Last"), first name only, or last name only.
+
+For `custom_field_names`, dropdown fields are additionally validated -- if the supplied value is not among the allowed options, an error lists the valid choices.
+
+### Example
+
+Instead of:
+```json
+{
+  "pipeline_id": "abc123",
+  "status_id": "def456",
+  "custom_fields": { "cf_789": "Matt" }
+}
+```
+
+Use:
+```json
+{
+  "pipeline_id": "abc123",
+  "status_name": "Active",
+  "custom_field_names": { "Hunter": "Matt" }
+}
+```
+
+## Count Mode (v1.3.0)
+
+All search and list tools support a `count_only` parameter. When set to `true`, the tool auto-paginates through all pages (up to a safety cap of 100 pages) and returns only aggregate counts with breakdowns -- no results array is included. This is useful for questions like "how many deals are in each status?" without transferring the full dataset.
+
+### Supported Tools
+
+| Tool | Breakdowns in Count Mode |
+|------|--------------------------|
+| `search_contacts` | `by_assigned_to` |
+| `search_pipeline_items` | `by_status` |
+| `get_pipeline_items_attached_to_contact` | `by_pipeline`, `by_status` |
+| `search_tasks` | `by_completion` |
+| `get_tasks_attached_to_contact` | `by_completion` |
+| `search_events` | (total only) |
+| `get_events_attached_to_contact` | (total only) |
+| `search_notes` | (total only) |
+| `get_notes_attached_to_contact` | (total only) |
+| `search_emails` | `by_direction` |
+| `get_emails_attached_to_contact` | `by_direction` |
+| `get_contacts_in_group` | `by_assigned_to` |
+
+### Count Mode Response
+
+```json
+{
+  "total": 47,
+  "breakdowns": {
+    "by_status": {
+      "Active": 30,
+      "Closed - Won": 12,
+      "Closed - Lost": 5
+    }
+  }
+}
+```
+
+When `count_only` is `true`:
+- The tool paginates through all available pages automatically
+- No `results` array is returned -- only `total` and `breakdowns`
+- A safety cap of 100 pages prevents runaway pagination
+
+## Flat-String Shortcuts (v1.3.0)
+
+`create_contact` and `edit_contact` accept simplified string parameters for common single-value fields:
+
+| Shortcut Parameter | Expands To | Type |
+|--------------------|-----------|------|
+| `email_address` | `[{Text: "<value>", Type: "Work"}]` | Work email |
+| `phone_number` | `[{Text: "<value>", Type: "Work"}]` | Work phone |
+| `website_url` | `[{Text: "<value>"}]` | Website |
+
+Each shortcut is mutually exclusive with its corresponding array parameter (e.g., `email_address` cannot be used together with `email`). This eliminates the need to construct array-of-objects structures for the common case of a single value.
+
+### Example
+
+Instead of:
+```json
+{
+  "name": "Jane Doe",
+  "email": [{"Text": "jane@example.com", "Type": "Work"}],
+  "phone": [{"Text": "555-0100", "Type": "Work"}]
+}
+```
+
+Use:
+```json
+{
+  "name": "Jane Doe",
+  "email_address": "jane@example.com",
+  "phone_number": "555-0100"
+}
+```
 
 ## Available Tools
 
@@ -294,48 +427,79 @@ Single-record tools (e.g., `get_contact`, `get_task`, `get_pipeline_item`) retur
 | `get_webhooks` | Get all webhooks |
 | `delete_webhook` | Delete a webhook |
 
-## Custom Fields
+## Name Resolution (v1.3.0)
 
-LACRM supports custom fields on contacts, companies, and pipeline items. The `get_custom_fields` tool returns AI-friendly information including:
+Search and create/edit tools accept human-readable names that are auto-resolved to IDs at runtime, eliminating the need for prerequisite lookup calls.
 
-- **name**: The field name to use as key when setting values
-- **required**: Whether this field must be provided
-- **type**: Field type (Text, Number, Dropdown, Date, etc.)
-- **input_format**: Description of expected value format
-- **valid_options**: For Dropdown/RadioList/Checkbox fields, the allowed values
+| Parameter | Available On | Resolves Via |
+|-----------|-------------|-------------|
+| `status_name_filter` | `search_pipeline_items` | `GetPipelineStatuses` → StatusId |
+| `status_name` | `create_pipeline_item`, `edit_pipeline_item` | `GetPipelineStatuses` → StatusId |
+| `user_name_filter` | `search_pipeline_items`, `search_tasks`, `search_events` | `GetUsers` → UserId |
+| `calendar_name_filter` | `search_events` | `GetCalendars` → CalendarId |
+| `custom_field_names` | `create_contact`, `edit_contact`, `create_pipeline_item`, `edit_pipeline_item` | `GetCustomFields` → CustomFieldId |
 
-### For Contacts/Companies:
+All name matching is case-insensitive. Unmatched names return a descriptive error listing available options. Name-based and ID-based parameters are mutually exclusive.
 
-1. Call `get_custom_fields` with `record_type="Contact"` or `record_type="Company"`
-2. Note the field names and whether they are required
-3. Use field names as keys in the `custom_fields` parameter
+## Count Mode (v1.3.0)
 
-### For Pipeline Items:
+All search and list tools support `count_only: true`, which auto-paginates through all results and returns only aggregate totals with categorical breakdowns — no results array.
 
-1. Call `get_pipeline_custom_fields` with the `pipeline_id`
-2. Note all required fields and their valid options
-3. Use field names as keys in the `custom_fields` parameter when creating/editing
-
-Example:
 ```json
 {
-  "custom_fields": {
-    "Hunter": "Matt",
+  "total": 32682,
+  "breakdowns": {
+    "by_status": { "Active": 15000, "Closed": 17682 }
+  }
+}
+```
+
+Safety cap: maximum 100 pages (1M items) to prevent runaway loops.
+
+## Flat-String Shortcuts (v1.3.0)
+
+`create_contact` and `edit_contact` accept flat-string parameters for single values:
+
+| Shortcut | Auto-converts To | Default Type |
+|----------|-----------------|-------------|
+| `email_address` | `[{Text: "...", Type: "Work"}]` | Work |
+| `phone_number` | `[{Text: "...", Type: "Work"}]` | Work |
+| `website_url` | `[{Text: "..."}]` | — |
+
+Mutually exclusive with the array versions (`email`, `phone`, `website`).
+
+## Custom Fields
+
+### Using `custom_field_names` (Recommended — v1.3.0)
+
+Pass field names directly as keys. The server resolves names to IDs automatically and validates dropdown values:
+
+```json
+{
+  "custom_field_names": {
+    "Lead Source": "Referral",
     "Deal Value": 50000,
     "Expected Close": "2025-03-15"
   }
 }
 ```
 
+Invalid field names return an error listing available fields. Invalid dropdown values return an error listing valid options.
+
+### Using `custom_fields` (ID-based fallback)
+
+1. Call `get_custom_fields` (for contacts/companies) or `get_pipeline_custom_fields` (for pipeline items) to discover field IDs
+2. Use CustomFieldId as the JSON key
+
 ## Pipeline Support
 
 Workflow for creating pipeline items:
 
-1. Call `get_pipelines` to discover pipeline IDs and their statuses
-2. Call `get_pipeline_custom_fields` with the pipeline_id to see required fields
-3. Use `create_pipeline_item` with `pipeline_id`, `status_id`, and `custom_fields`
+1. Call `get_pipelines` to discover pipeline IDs
+2. Use `create_pipeline_item` with `pipeline_id` and `status_name` (auto-resolves) — or `status_id` if you already have it
+3. Optionally include `custom_field_names` for pipeline custom fields
 
-The tools provide clear error messages when required fields are missing.
+The tools provide clear error messages when required fields are missing or names don't match.
 
 ## API Reference
 
