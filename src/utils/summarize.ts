@@ -49,7 +49,7 @@ function getNestedValue(obj: unknown, path: string): string {
  * @param items - The array of result items
  * @param hasMore - Whether the API has more results beyond this page
  * @param breakdowns - Which fields to count by (empty array = total only)
- * @returns JSON string with summary envelope: { summary, results }
+ * @returns JSON string with summary envelope: { summary: { page_count, has_more_results, note?, breakdowns... }, results }
  *
  * @example
  * // Pipeline items with status breakdown
@@ -71,9 +71,13 @@ export function summarizeResults(
   breakdowns: BreakdownConfig[]
 ): string {
   const summary: Record<string, unknown> = {
-    total: items.length,
+    page_count: items.length,
     has_more_results: hasMore,
   };
+
+  if (hasMore) {
+    summary.note = 'page_count is ONLY the number of items on this page, NOT the total. Use count_only=true for accurate totals across all pages.';
+  }
 
   for (const { label, path } of breakdowns) {
     const counts: Record<string, number> = {};
