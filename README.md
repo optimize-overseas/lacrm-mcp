@@ -427,50 +427,9 @@ Use:
 | `get_webhooks` | Get all webhooks |
 | `delete_webhook` | Delete a webhook |
 
-## Name Resolution (v1.3.0)
-
-Search and create/edit tools accept human-readable names that are auto-resolved to IDs at runtime, eliminating the need for prerequisite lookup calls.
-
-| Parameter | Available On | Resolves Via |
-|-----------|-------------|-------------|
-| `status_name_filter` | `search_pipeline_items` | `GetPipelineStatuses` → StatusId |
-| `status_name` | `create_pipeline_item`, `edit_pipeline_item` | `GetPipelineStatuses` → StatusId |
-| `user_name_filter` | `search_pipeline_items`, `search_tasks`, `search_events` | `GetUsers` → UserId |
-| `calendar_name_filter` | `search_events` | `GetCalendars` → CalendarId |
-| `custom_field_names` | `create_contact`, `edit_contact`, `create_pipeline_item`, `edit_pipeline_item` | `GetCustomFields` → CustomFieldId |
-
-All name matching is case-insensitive. Unmatched names return a descriptive error listing available options. Name-based and ID-based parameters are mutually exclusive.
-
-## Count Mode (v1.3.0)
-
-All search and list tools support `count_only: true`, which auto-paginates through all results and returns only aggregate totals with categorical breakdowns — no results array.
-
-```json
-{
-  "total": 32682,
-  "breakdowns": {
-    "by_status": { "Active": 15000, "Closed": 17682 }
-  }
-}
-```
-
-Safety cap: maximum 100 pages (1M items) to prevent runaway loops.
-
-## Flat-String Shortcuts (v1.3.0)
-
-`create_contact` and `edit_contact` accept flat-string parameters for single values:
-
-| Shortcut | Auto-converts To | Default Type |
-|----------|-----------------|-------------|
-| `email_address` | `[{Text: "...", Type: "Work"}]` | Work |
-| `phone_number` | `[{Text: "...", Type: "Work"}]` | Work |
-| `website_url` | `[{Text: "..."}]` | — |
-
-Mutually exclusive with the array versions (`email`, `phone`, `website`).
-
 ## Custom Fields
 
-### Using `custom_field_names` (Recommended — v1.3.0)
+### Using `custom_field_names` (Recommended -- v1.3.0)
 
 Pass field names directly as keys. The server resolves names to IDs automatically and validates dropdown values:
 
@@ -488,16 +447,28 @@ Invalid field names return an error listing available fields. Invalid dropdown v
 
 ### Using `custom_fields` (ID-based fallback)
 
-1. Call `get_custom_fields` (for contacts/companies) or `get_pipeline_custom_fields` (for pipeline items) to discover field IDs
-2. Use CustomFieldId as the JSON key
+1. Call `get_custom_fields` with `record_type="Contact"` or `record_type="Company"` (for contacts/companies) or `get_pipeline_custom_fields` with the `pipeline_id` (for pipeline items)
+2. Note the field names, types, required status, and valid options
+3. Use field names as keys in the `custom_fields` parameter
+
+Example:
+```json
+{
+  "custom_fields": {
+    "Hunter": "Matt",
+    "Deal Value": 50000,
+    "Expected Close": "2025-03-15"
+  }
+}
+```
 
 ## Pipeline Support
 
 Workflow for creating pipeline items:
 
 1. Call `get_pipelines` to discover pipeline IDs
-2. Use `create_pipeline_item` with `pipeline_id` and `status_name` (auto-resolves) — or `status_id` if you already have it
-3. Optionally include `custom_field_names` for pipeline custom fields
+2. Use `create_pipeline_item` with `pipeline_id` and either `status_name` (auto-resolves, v1.3.0) or `status_id`
+3. Optionally include `custom_field_names` (v1.3.0) or `custom_fields` for pipeline custom fields
 
 The tools provide clear error messages when required fields are missing or names don't match.
 
