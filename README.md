@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server for Less Annoying CRM that provides compre
 
 Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@optimizeoverseas/lacrm-mcp) on npm.
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 ## Key Features
 
@@ -12,7 +12,7 @@ Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@opti
 - **Name resolution**: Search tools accept human-readable names (status names, user names, calendar names, custom field names) and auto-resolve to IDs at runtime — no prerequisite lookup calls needed
 - **count_only mode**: All search/list tools support `count_only: true` which auto-paginates through all results and returns accurate totals with categorical breakdowns — no manual pagination required
 - **Flat-string shortcuts**: `email_address`, `phone_number`, `website_url` on contact create/edit auto-convert to the required array format
-- **Response summaries**: List-returning tools wrap results in `{summary, results}` envelopes with machine-counted totals and breakdowns
+- **Response summaries**: List-returning tools wrap results in `{summary, results}` envelopes with machine-counted page counts and breakdowns
 - **ID sanitization**: Defense-in-depth stripping of accidental quote characters from ID parameters
 - **Rate limiting**: Client-side enforcement of 120 requests/minute with automatic waiting
 
@@ -93,14 +93,14 @@ This server provides workflow resources that help AI clients understand how to u
 
 ### Summary Envelopes
 
-All list-returning tools wrap their results in a structured `{summary, results}` envelope. The summary provides machine-counted totals and categorical breakdowns, which prevents LLMs from miscounting items in large JSON arrays -- a known failure mode when datasets exceed approximately 50 items.
+All list-returning tools wrap their results in a structured `{summary, results}` envelope. The summary provides machine-counted page counts and categorical breakdowns, which prevents LLMs from miscounting items in large JSON arrays -- a known failure mode when datasets exceed approximately 50 items.
 
 **Envelope structure:**
 
 ```json
 {
   "summary": {
-    "total": 15,
+    "page_count": 15,
     "has_more_results": false,
     "by_status": {
       "Active": 10,
@@ -116,8 +116,11 @@ All list-returning tools wrap their results in a structured `{summary, results}`
 ```
 
 The `summary` object always includes:
-- `total` -- the exact count of items in the `results` array
+- `page_count` -- the number of items on **this page only** (not the total across all pages)
 - `has_more_results` -- whether the API has additional pages beyond this response
+- `note` (when `has_more_results` is true) -- a reminder that `page_count` is partial and `count_only=true` should be used for accurate totals
+
+**Important:** When `has_more_results` is `true`, the `page_count` value is NOT the total number of matching results. Use `count_only=true` for accurate totals across all pages.
 
 Depending on the tool, the summary may also include one or more categorical breakdowns that group items by a relevant field.
 
@@ -132,11 +135,11 @@ Depending on the tool, the summary may also include one or more categorical brea
 | `get_tasks_attached_to_contact` | `by_completion` | Counts by completion (Yes/No) |
 | `search_emails` | `by_direction` | Counts by send direction (Yes/No for UserIsSender) |
 | `get_emails_attached_to_contact` | `by_direction` | Counts by send direction (Yes/No for UserIsSender) |
-| `search_events` | (total only) | Total count and pagination status |
-| `get_events_attached_to_contact` | (total only) | Total count and pagination status |
-| `search_notes` | (total only) | Total count and pagination status |
-| `get_notes_attached_to_contact` | (total only) | Total count and pagination status |
-| `get_files_attached_to_contact` | (total only) | Total count and pagination status |
+| `search_events` | (total only) | Page count and pagination status |
+| `get_events_attached_to_contact` | (total only) | Page count and pagination status |
+| `search_notes` | (total only) | Page count and pagination status |
+| `get_notes_attached_to_contact` | (total only) | Page count and pagination status |
+| `get_files_attached_to_contact` | (total only) | Page count and pagination status |
 | `get_contacts_in_group` | `by_assigned_to` | Counts by assigned user |
 
 Single-record tools (e.g., `get_contact`, `get_task`, `get_pipeline_item`) return the raw API response directly without a summary envelope.

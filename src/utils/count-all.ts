@@ -85,7 +85,13 @@ export async function countAll(
       }
     }
 
-    const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
+    // Determine if more pages exist. The API normally returns
+    // { Results: [...], HasMoreResults: bool }, but some endpoints
+    // return a plain array. For plain arrays, assume more pages
+    // exist if the current page is full (items.length === PAGE_SIZE).
+    const hasMore = Array.isArray(result)
+      ? items.length >= PAGE_SIZE
+      : result.HasMoreResults === true;
     if (!hasMore || items.length === 0) break;
   }
 
