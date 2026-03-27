@@ -20,6 +20,8 @@ import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 import { summarizeResults } from '../../utils/summarize.js';
+import { resolveUserNames } from '../../utils/resolve-names.js';
+import { countAll } from '../../utils/count-all.js';
 
 export function registerTaskTools(server: McpServer): void {
   // create_task
@@ -192,33 +194,58 @@ Use this tool to find tasks by date, user, contact, or completion status.
 RETURNS FULL DATA: Each result includes all task fields (name, due date, description, completion status, linked contact, etc.) - no need to call get_task afterward.
 
 Required: start_date, end_date.
-Supports filtering by completion status (Both, Incomplete, Complete).`,
+Supports filtering by completion status (Both, Incomplete, Complete).
+Supports name-based user filter: use user_name_filter instead of user_filter.
+Use count_only=true for accurate counts on large datasets without returning the full result set.`,
       inputSchema: {
         start_date: z.string().describe('Start of date range (YYYY-MM-DD)'),
         end_date: z.string().describe('End of date range (YYYY-MM-DD)'),
-        user_filter: z.array(z.string()).optional().describe('Filter by user IDs'),
+        user_filter: z.array(z.string()).optional().describe('Filter by user IDs. Mutually exclusive with user_name_filter.'),
+        user_name_filter: z.array(z.string()).optional().describe('Filter by user names (case-insensitive, auto-resolved to IDs). Mutually exclusive with user_filter.'),
         contact_id: z.string().optional().describe('Filter by contact ID'),
         completion_status: z.enum(['Both', 'Incomplete', 'Complete']).optional().describe('Filter by completion (default: Both)'),
         sort_direction: z.enum(['Ascending', 'Descending']).optional(),
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
       }
     },
     async (args) => {
       try {
         const client = getClient();
 
+        // Validation: mutually exclusive filters
+        if (args.user_filter && args.user_name_filter) {
+          throw new Error('Use user_filter or user_name_filter, not both');
+        }
+
+        // Resolve name-based filters to IDs
+        let userFilter = args.user_filter;
+        if (args.user_name_filter) {
+          userFilter = await resolveUserNames(client, args.user_name_filter);
+        }
+
         const params: Record<string, unknown> = {
           StartDate: args.start_date,
           EndDate: args.end_date
         };
 
-        if (args.user_filter) params.UserFilter = args.user_filter;
+        if (userFilter) params.UserFilter = userFilter;
         if (args.contact_id) params.ContactId = args.contact_id;
         if (args.completion_status) params.CompletionStatus = args.completion_status;
         if (args.sort_direction) params.SortDirection = args.sort_direction;
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
+
+        // count_only mode: auto-paginate and return just summary
+        if (args.count_only) {
+          const countResult = await countAll(client, 'GetTasks', params, [
+            { label: 'by_completion', path: 'IsComplete' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetTasks', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
@@ -246,20 +273,32 @@ Supports filtering by completion status (Both, Incomplete, Complete).`,
     {
       title: 'Get Tasks For Contact',
       description: `Retrieve all tasks for a specific contact.
-RETURNS FULL DATA: Each result includes all task fields - no need to call get_task afterward.`,
+RETURNS FULL DATA: Each result includes all task fields - no need to call get_task afterward.
+Use count_only=true for accurate counts without returning the full result set.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get tasks for'),
         max_results: z.number().optional().describe('Max results (default 500)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array).')
       }
     },
-    async ({ contact_id, max_results, page }) => {
+    async ({ contact_id, max_results, page, count_only }) => {
       try {
         const client = getClient();
 
         const params: Record<string, unknown> = { ContactId: contact_id };
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
+
+        // count_only mode
+        if (count_only) {
+          const countResult = await countAll(client, 'GetTasksAttachedToContact', params, [
+            { label: 'by_completion', path: 'IsComplete' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetTasksAttachedToContact', params);
         const items = Array.isArray(result) ? result : (result.Results || []);

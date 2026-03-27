@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 import { summarizeResults } from '../../utils/summarize.js';
+import { countAll } from '../../utils/count-all.js';
 
 export function registerGroupMembershipTools(server: McpServer): void {
   // add_contact_to_group
@@ -155,12 +156,14 @@ Use either group_id or group_name to identify the group (not both).`,
     {
       title: 'Get Contacts in Group',
       description: `Retrieve all contacts that belong to a specific group.
-Use either group_id or group_name to identify the group (not both).`,
+Use either group_id or group_name to identify the group (not both).
+Use count_only=true for accurate counts without returning the full result set.`,
       inputSchema: {
         group_id: z.string().optional().describe('Group ID (preferred over group_name)'),
         group_name: z.string().optional().describe('Group name (alternative to group_id)'),
         max_results: z.number().optional().describe('Max results (default 500)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array).')
       }
     },
     async (args) => {
@@ -185,6 +188,16 @@ Use either group_id or group_name to identify the group (not both).`,
         if (args.group_name) params.GroupName = args.group_name;
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
+
+        // count_only mode
+        if (args.count_only) {
+          const countResult = await countAll(client, 'GetContactsInGroup', params, [
+            { label: 'by_assigned_to', path: 'AssignedTo' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetContactsInGroup', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
