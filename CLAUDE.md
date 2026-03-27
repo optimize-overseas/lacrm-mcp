@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `@optimizeoverseas/lacrm-mcp` is an MCP (Model Context Protocol) server for Less Annoying CRM (v1.3.0). It exposes 83 tools across contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings.
 
-Used by Allegiance AI (via OpenClaw + enforcement wrapper at `optimize-overseas/lacrmenforcement-wrapper`). Published to npm, deployed globally on the production VM.
+Published to npm. Can be deployed standalone or behind a proxy/wrapper for additional enforcement (e.g., rate limiting, operation budgets, blocked tools).
 
 ## Build & Development
 
@@ -73,19 +73,14 @@ src/
 npm version patch|minor|major
 git push origin main --tags
 npm publish --access public
-ssh allegiance 'npm install -g @optimizeoverseas/lacrm-mcp@latest && systemctl --user restart openclaw-allegiance'
+# On target host:
+npm install -g @optimizeoverseas/lacrm-mcp@latest
 ```
-
-## Related Repos
-
-- `optimize-overseas/lacrmenforcement-wrapper` -- Transparent proxy that blocks deletes and enforces session budgets
-- `optimize-overseas/allegiance-ai` -- The AI system that uses this MCP server via OpenClaw
 
 ## Important Notes
 
 - All logging goes to stderr (stdout is the MCP JSON-RPC stream)
 - ID parameters are automatically sanitized to strip accidental quote characters
-- The enforcement wrapper runs between OpenClaw and this MCP server (see mcporter.json in allegiance-ai)
 - Name resolution parameters (v1.3.0) are always mutually exclusive with their ID-based counterparts -- providing both will error
 - `count_only` mode (v1.3.0) makes additional API calls to paginate all pages; the 100-page safety cap prevents runaway usage
 - Flat-string shortcuts (v1.3.0) on contacts are convenience sugar -- they are mutually exclusive with the array-form parameters
