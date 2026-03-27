@@ -20,6 +20,8 @@ import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 import { summarizeResults } from '../../utils/summarize.js';
+import { resolveCustomFieldNames } from '../../utils/resolve-names.js';
+import { countAll } from '../../utils/count-all.js';
 
 // Shared schemas for contact data
 const emailSchema = z.object({
@@ -61,25 +63,51 @@ PREREQUISITES (call these first):
 Use this tool when you need to add a new person or company to the CRM.
 Set is_company to true to create a company record instead of a person.
 
+Supports flat-string shortcuts: use email_address, phone_number, or website_url for single values instead of the array format.
+Supports custom_field_names for name-based custom field resolution.
+
 Returns the new ContactId on success.`,
       inputSchema: {
         name: z.string().describe('Full name of the contact or company name'),
         assigned_to: z.string().describe('User ID to assign the contact to. Use get_users to find valid IDs.'),
         is_company: z.boolean().describe('Set true to create a company, false for a person'),
-        email: z.array(emailSchema).optional().describe('Email addresses'),
-        phone: z.array(phoneSchema).optional().describe('Phone numbers'),
+        email: z.array(emailSchema).optional().describe('Email addresses array'),
+        phone: z.array(phoneSchema).optional().describe('Phone numbers array'),
+        email_address: z.string().optional().describe('Single email address (auto-converts to Work type). For multiple emails, use email array instead.'),
+        phone_number: z.string().optional().describe('Single phone number (auto-converts to Work type). For multiple phones, use phone array instead.'),
+        website_url: z.string().optional().describe('Single website URL. For multiple websites, use website array instead.'),
         company_name: z.string().optional().describe('Company name (for contacts). Creates company if not exists.'),
         job_title: z.string().optional().describe('Job title/position'),
         address: z.array(addressSchema).optional().describe('Physical addresses'),
         website: z.array(websiteSchema).optional().describe('Website URLs'),
         background_info: z.string().optional().describe('Additional notes/background'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format. Use 0000-mm-dd for annual dates.'),
-        custom_fields: z.record(z.unknown()).optional().describe('Custom field values. Keys are field IDs from get_custom_fields.')
+        custom_fields: z.record(z.unknown()).optional().describe('Custom field values keyed by field ID. Mutually exclusive with custom_field_names.'),
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields.')
       }
     },
     async (args) => {
       try {
         const client = getClient();
+
+        // Validation: mutually exclusive shortcuts
+        if (args.email_address && args.email) {
+          throw new Error('Use email_address or email array, not both');
+        }
+        if (args.phone_number && args.phone) {
+          throw new Error('Use phone_number or phone array, not both');
+        }
+        if (args.website_url && args.website) {
+          throw new Error('Use website_url or website array, not both');
+        }
+        if (args.custom_fields && args.custom_field_names) {
+          throw new Error('Use custom_fields or custom_field_names, not both');
+        }
+
+        // Convert flat-string shortcuts to array format
+        const emails = args.email_address ? [{ Text: args.email_address, Type: 'Work' }] : args.email;
+        const phones = args.phone_number ? [{ Text: args.phone_number, Type: 'Work' }] : args.phone;
+        const websites = args.website_url ? [{ Text: args.website_url }] : args.website;
 
         const params: Record<string, unknown> = {
           AssignedTo: args.assigned_to,
@@ -93,17 +121,21 @@ Returns the new ContactId on success.`,
           params.Name = args.name;
         }
 
-        if (args.email) params.Email = args.email;
-        if (args.phone) params.Phone = args.phone;
+        if (emails) params.Email = emails;
+        if (phones) params.Phone = phones;
         if (!args.is_company && args.company_name) params['Company Name'] = args.company_name;
         if (args.job_title) params['Job Title'] = args.job_title;
         if (args.address) params.Address = args.address;
-        if (args.website) params.Website = args.website;
+        if (websites) params.Website = websites;
         if (args.background_info) params['Background Info'] = args.background_info;
         if (args.birthday) params.Birthday = args.birthday;
 
-        // Add custom fields directly to params
-        if (args.custom_fields) {
+        // Resolve custom field names to IDs
+        if (args.custom_field_names) {
+          const recordType = args.is_company ? 'Company' : 'Contact';
+          const resolvedFields = await resolveCustomFieldNames(client, args.custom_field_names, recordType);
+          Object.assign(params, resolvedFields);
+        } else if (args.custom_fields) {
           Object.assign(params, args.custom_fields);
         }
 
@@ -133,7 +165,10 @@ PREREQUISITES (call these first):
 2. search_contacts or get_contact → find/verify valid contact_id
 
 Use this tool to modify contact details like name, email, phone, etc.
-Only include fields you want to change - other fields remain unchanged.`,
+Only include fields you want to change - other fields remain unchanged.
+
+Supports flat-string shortcuts: use email_address, phone_number, or website_url for single values.
+Supports custom_field_names for name-based custom field resolution.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId of the record to edit'),
         name: z.string().optional().describe('Full name'),
@@ -141,18 +176,41 @@ Only include fields you want to change - other fields remain unchanged.`,
         is_company: z.boolean().optional().describe('Change record type'),
         email: z.array(emailSchema).optional().describe('Email addresses (replaces all existing)'),
         phone: z.array(phoneSchema).optional().describe('Phone numbers (replaces all existing)'),
+        email_address: z.string().optional().describe('Single email address (auto-converts to Work type). For multiple emails, use email array instead.'),
+        phone_number: z.string().optional().describe('Single phone number (auto-converts to Work type). For multiple phones, use phone array instead.'),
+        website_url: z.string().optional().describe('Single website URL. For multiple websites, use website array instead.'),
         company_name: z.string().optional().describe('Company name'),
         job_title: z.string().optional().describe('Job title'),
         address: z.array(addressSchema).optional().describe('Addresses (replaces all existing)'),
         website: z.array(websiteSchema).optional().describe('Website URLs'),
         background_info: z.string().optional().describe('Additional notes'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format'),
-        custom_fields: z.record(z.unknown()).optional().describe('Custom field values to update')
+        custom_fields: z.record(z.unknown()).optional().describe('Custom field values to update keyed by field ID. Mutually exclusive with custom_field_names.'),
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields.')
       }
     },
     async (args) => {
       try {
         const client = getClient();
+
+        // Validation: mutually exclusive shortcuts
+        if (args.email_address && args.email) {
+          throw new Error('Use email_address or email array, not both');
+        }
+        if (args.phone_number && args.phone) {
+          throw new Error('Use phone_number or phone array, not both');
+        }
+        if (args.website_url && args.website) {
+          throw new Error('Use website_url or website array, not both');
+        }
+        if (args.custom_fields && args.custom_field_names) {
+          throw new Error('Use custom_fields or custom_field_names, not both');
+        }
+
+        // Convert flat-string shortcuts to array format
+        const emails = args.email_address ? [{ Text: args.email_address, Type: 'Work' }] : args.email;
+        const phones = args.phone_number ? [{ Text: args.phone_number, Type: 'Work' }] : args.phone;
+        const websites = args.website_url ? [{ Text: args.website_url }] : args.website;
 
         const params: Record<string, unknown> = {
           ContactId: args.contact_id
@@ -161,16 +219,21 @@ Only include fields you want to change - other fields remain unchanged.`,
         if (args.name !== undefined) params.Name = args.name;
         if (args.assigned_to !== undefined) params.AssignedTo = args.assigned_to;
         if (args.is_company !== undefined) params.IsCompany = args.is_company;
-        if (args.email !== undefined) params.Email = args.email;
-        if (args.phone !== undefined) params.Phone = args.phone;
+        if (emails !== undefined) params.Email = emails;
+        if (phones !== undefined) params.Phone = phones;
         if (args.company_name !== undefined) params['Company Name'] = args.company_name;
         if (args.job_title !== undefined) params['Job Title'] = args.job_title;
         if (args.address !== undefined) params.Address = args.address;
-        if (args.website !== undefined) params.Website = args.website;
+        if (websites !== undefined) params.Website = websites;
         if (args.background_info !== undefined) params['Background Info'] = args.background_info;
         if (args.birthday !== undefined) params.Birthday = args.birthday;
 
-        if (args.custom_fields) {
+        // Resolve custom field names to IDs
+        if (args.custom_field_names) {
+          const recordType = args.is_company ? 'Company' : 'Contact';
+          const resolvedFields = await resolveCustomFieldNames(client, args.custom_field_names, recordType);
+          Object.assign(params, resolvedFields);
+        } else if (args.custom_fields) {
           Object.assign(params, args.custom_fields);
         }
 
@@ -180,7 +243,7 @@ Only include fields you want to change - other fields remain unchanged.`,
         const updateFields = Object.keys(params).filter(k => k !== 'ContactId');
         if (updateFields.length === 0) {
           return {
-            content: [{ type: 'text' as const, text: `Error: No valid fields to update were provided. Available fields: name, assigned_to, is_company, email, phone, company_name, job_title, address, website, background_info, birthday, custom_fields. Note: use "company_name" (not "company") for the company field.` }],
+            content: [{ type: 'text' as const, text: `Error: No valid fields to update were provided. Available fields: name, assigned_to, is_company, email, phone, email_address, phone_number, website_url, company_name, job_title, address, website, background_info, birthday, custom_fields, custom_field_names. Note: use "company_name" (not "company") for the company field.` }],
             isError: true
           };
         }
@@ -345,6 +408,7 @@ Supports:
 
 IMPORTANT: For geographic searches (by state, city, zip), use advanced_filters with the address fields (AddressState, AddressCity, AddressZip, etc.) instead of search_terms. Free-text search_terms scans all fields and can be very slow on broad terms.
 
+Use count_only=true for accurate counts on large datasets without returning the full result set.
 Use get_custom_fields to learn available custom field names for advanced filtering.`,
       inputSchema: {
         search_terms: z.string().optional().describe('Text to search across all fields'),
@@ -354,6 +418,7 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         sort_direction: z.enum(['Ascending', 'Descending']).optional(),
         max_results: z.number().optional().describe('Max results per page (default 25, max 10000). Keep low for name searches.'),
         page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.'),
         advanced_filters: z.array(z.object({
           Name: z.string().describe('Field name to filter on. Standard fields available on all accounts: Group, FullName, FirstName, MiddleName, LastName, CompanyName, CompanyId, Salutation, Suffix, DateEntered, DateUpdated, Email, AddressStreet, AddressCity, AddressState, AddressZip, AddressCountry, Phone, Website, Title, BackgroundInfo, Industry, Birthday, Age, NumEmp, Cal, Pipeline. Custom fields use Custom_<id> format — call get_custom_fields to discover them.'),
           Operation: z.enum([
@@ -404,6 +469,16 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         params.MaxNumberOfResults = args.max_results ?? 25;
         if (args.page) params.Page = args.page;
         if (args.advanced_filters) params.AdvancedFilters = args.advanced_filters;
+
+        // count_only mode: auto-paginate and return just summary
+        if (args.count_only) {
+          const countResult = await countAll(client, 'GetContacts', params, [
+            { label: 'by_assigned_to', path: 'AssignedTo' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
 

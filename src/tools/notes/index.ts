@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 import { summarizeResults } from '../../utils/summarize.js';
+import { countAll } from '../../utils/count-all.js';
 
 export function registerNoteTools(server: McpServer): void {
   // create_note
@@ -170,7 +171,8 @@ Use this tool to find notes across all contacts or for specific users.
 
 RETURNS FULL DATA: Each result includes all note fields (content, timestamps, linked contact, etc.) - no need to call get_note afterward.
 
-Supports filtering by date range, user, and specific contact.`,
+Supports filtering by date range, user, and specific contact.
+Use count_only=true for accurate counts on large datasets without returning the full result set.`,
       inputSchema: {
         date_start: z.string().optional().describe('Return notes on or after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return notes on or before this date (ISO 8601)'),
@@ -178,7 +180,8 @@ Supports filtering by date range, user, and specific contact.`,
         contact_id: z.string().optional().describe('Filter by specific contact'),
         sort_direction: z.enum(['Ascending', 'Descending']).optional().describe('Sort order (default: Descending)'),
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
       }
     },
     async (args) => {
@@ -194,6 +197,14 @@ Supports filtering by date range, user, and specific contact.`,
         if (args.sort_direction) params.SortDirection = args.sort_direction;
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
+
+        // count_only mode: auto-paginate and return just summary
+        if (args.count_only) {
+          const countResult = await countAll(client, 'GetNotes', params, []);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetNotes', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
@@ -216,20 +227,30 @@ Supports filtering by date range, user, and specific contact.`,
     {
       title: 'Get Notes For Contact',
       description: `Retrieve all notes for a specific contact.
-RETURNS FULL DATA: Each result includes all note fields - no need to call get_note afterward.`,
+RETURNS FULL DATA: Each result includes all note fields - no need to call get_note afterward.
+Use count_only=true for accurate counts without returning the full result set.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get notes for'),
         max_results: z.number().optional().describe('Max results (default 500)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array).')
       }
     },
-    async ({ contact_id, max_results, page }) => {
+    async ({ contact_id, max_results, page, count_only }) => {
       try {
         const client = getClient();
 
         const params: Record<string, unknown> = { ContactId: contact_id };
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
+
+        // count_only mode
+        if (count_only) {
+          const countResult = await countAll(client, 'GetNotesAttachedToContact', params, []);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetNotesAttachedToContact', params);
         const items = Array.isArray(result) ? result : (result.Results || []);

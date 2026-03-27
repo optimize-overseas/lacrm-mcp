@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
 import { summarizeResults } from '../../utils/summarize.js';
+import { countAll } from '../../utils/count-all.js';
 
 const emailAddressSchema = z.object({
   Address: z.string().describe('Email address'),
@@ -113,7 +114,9 @@ NOTE: search_emails returns the same full data for each match. Only use get_emai
       description: `Search for logged emails with optional filters.
 Use this to find emails by date range, user, or contact.
 
-RETURNS FULL DATA: Each result includes all email fields (sender, recipients, subject, body, timestamps, etc.) - no need to call get_email afterward.`,
+RETURNS FULL DATA: Each result includes all email fields (sender, recipients, subject, body, timestamps, etc.) - no need to call get_email afterward.
+
+Use count_only=true for accurate counts on large datasets without returning the full result set.`,
       inputSchema: {
         date_start: z.string().optional().describe('Return emails after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return emails before this date (ISO 8601)'),
@@ -122,7 +125,8 @@ RETURNS FULL DATA: Each result includes all email fields (sender, recipients, su
         include_company_contacts: z.boolean().optional().describe('Include emails from contacts at same company'),
         sort_direction: z.enum(['Ascending', 'Descending']).optional(),
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
       }
     },
     async (args) => {
@@ -139,6 +143,16 @@ RETURNS FULL DATA: Each result includes all email fields (sender, recipients, su
         if (args.sort_direction) params.SortDirection = args.sort_direction;
         if (args.max_results) params.MaxNumberOfResults = args.max_results;
         if (args.page) params.Page = args.page;
+
+        // count_only mode: auto-paginate and return just summary
+        if (args.count_only) {
+          const countResult = await countAll(client, 'GetEmails', params, [
+            { label: 'by_direction', path: 'UserIsSender' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetEmails', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
@@ -166,20 +180,32 @@ RETURNS FULL DATA: Each result includes all email fields (sender, recipients, su
     {
       title: 'Get Emails For Contact',
       description: `Retrieve all logged emails for a specific contact.
-RETURNS FULL DATA: Each result includes all email fields - no need to call get_email afterward.`,
+RETURNS FULL DATA: Each result includes all email fields - no need to call get_email afterward.
+Use count_only=true for accurate counts without returning the full result set.`,
       inputSchema: {
         contact_id: z.string().describe('The ContactId to get emails for'),
         max_results: z.number().optional().describe('Max results (default 500)'),
-        page: z.number().optional().describe('Page number for pagination')
+        page: z.number().optional().describe('Page number for pagination'),
+        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array).')
       }
     },
-    async ({ contact_id, max_results, page }) => {
+    async ({ contact_id, max_results, page, count_only }) => {
       try {
         const client = getClient();
 
         const params: Record<string, unknown> = { ContactId: contact_id };
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
+
+        // count_only mode
+        if (count_only) {
+          const countResult = await countAll(client, 'GetEmailsAttachedToContact', params, [
+            { label: 'by_direction', path: 'UserIsSender' }
+          ]);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(countResult, null, 2) }]
+          };
+        }
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetEmailsAttachedToContact', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
