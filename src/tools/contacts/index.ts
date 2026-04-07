@@ -360,11 +360,11 @@ Maximum 10,000 results per call.`,
         if (max_results) params.MaxNumberOfResults = max_results;
         if (page) params.Page = page;
 
-        const result = await client.call('GetContactsById', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
+        const result = await client.call('GetContactsById', params) as { Results?: Array<{ ContactId: string;[key: string]: unknown }> };
 
         // Put ContactUrl first in each contact so it's visible even if response is truncated
-        if (result.Result && Array.isArray(result.Result)) {
-          result.Result = result.Result.map(contact => {
+        if (result.Results && Array.isArray(result.Results)) {
+          result.Results = result.Results.map(contact => {
             if (contact.ContactId) {
               const { ContactId, ...rest } = contact;
               return {
@@ -480,10 +480,10 @@ Use get_custom_fields to learn available custom field names for advanced filteri
           };
         }
 
-        const result = await client.call('GetContacts', params) as { Result?: Array<{ ContactId: string;[key: string]: unknown }> };
+        const result = await client.call('GetContacts', params) as { Results?: Array<{ ContactId: string;[key: string]: unknown }> };
 
         // Put ContactUrl first in each contact so it's visible even if response is truncated
-        const contactsArray = (result.Result || []).map(contact => {
+        const contactsArray = (result.Results || []).map(contact => {
           if (contact.ContactId) {
             const { ContactId, ...rest } = contact;
             return {
