@@ -2,7 +2,7 @@
 
 A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 83 tools.
 
-Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@optimizeoverseas/lacrm-mcp) on npm.
+Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm.
 
 **Current version: 1.3.1**
 
@@ -21,7 +21,7 @@ Published as [`@optimizeoverseas/lacrm-mcp`](https://www.npmjs.com/package/@opti
 ### From npm (recommended for production)
 
 ```bash
-npm install -g @optimizeoverseas/lacrm-mcp
+npm install -g lacrm-mcp
 ```
 
 ### From source

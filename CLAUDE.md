@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`@optimizeoverseas/lacrm-mcp` is an MCP (Model Context Protocol) server for Less Annoying CRM (v1.3.1). It exposes 83 tools across contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings.
+`lacrm-mcp` is an MCP (Model Context Protocol) server for Less Annoying CRM (v1.3.1). It exposes 83 tools across contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings.
 
 Published to npm. Can be deployed standalone or behind a proxy/wrapper for additional enforcement (e.g., rate limiting, operation budgets, blocked tools).
 
@@ -74,7 +74,7 @@ npm version patch|minor|major
 git push origin main --tags
 npm publish --access public
 # On target host:
-npm install -g @optimizeoverseas/lacrm-mcp@latest
+npm install -g lacrm-mcp@latest
 ```
 
 ## Important Notes
