@@ -1,7 +1,7 @@
 /**
  * Tool Registry for LACRM MCP Server
  *
- * Central registration point for all 83 MCP tools organized by domain:
+ * Central registration point for all 87 MCP tools organized by domain:
  *
  * Discovery Tools (10):
  *   - get_workflow_guide, get_custom_fields, get_pipeline_custom_fields
@@ -11,6 +11,10 @@
  * Contact Tools (6):
  *   - create_contact, edit_contact, delete_contact
  *   - get_contact, get_contacts_by_ids, search_contacts
+ *
+ * Bulk CSV Tools (4):
+ *   - bulk_generate_template, bulk_validate_csv
+ *   - bulk_execute, bulk_run_status
  *
  * Event Tools (6):
  *   - create_event, edit_event, delete_event
@@ -67,6 +71,7 @@ import { registerFileTools } from './files/index.js';
 import { registerRelationshipTools } from './relationships/index.js';
 import { registerGroupMembershipTools } from './groups/index.js';
 import { registerSettingsTools } from './settings/index.js';
+import { registerBulkTools } from './bulk/index.js';
 
 /**
  * Register all LACRM tools with the MCP server.
@@ -89,6 +94,9 @@ export function registerAllTools(server: McpServer): void {
 
   // Contact tools - core CRM functionality
   registerContactTools(server);
+
+  // Bulk CSV tools - throttled bulk create/update of contacts
+  registerBulkTools(server);
 
   // Activity tools - track interactions with contacts
   registerEventTools(server);
