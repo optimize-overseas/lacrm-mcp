@@ -1,6 +1,6 @@
 # LACRM MCP Server
 
-A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 83 tools.
+A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 87 tools.
 
 Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm.
 
@@ -8,7 +8,7 @@ Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm.
 
 ## Key Features
 
-- **83 tools** covering contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, and settings
+- **87 tools** covering contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, bulk CSV, and settings
 - **Name resolution**: Search tools accept human-readable names (status names, user names, calendar names, custom field names) and auto-resolve to IDs at runtime — no prerequisite lookup calls needed
 - **count_only mode**: All search/list tools support `count_only: true` which auto-paginates through all results and returns accurate totals with categorical breakdowns — no manual pagination required
 - **Flat-string shortcuts**: `email_address`, `phone_number`, `website_url` on contact create/edit auto-convert to the required array format
@@ -265,6 +265,41 @@ Use:
 }
 ```
 
+## Bulk CSV Operations (v1.4.0)
+
+Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second guidance. Four tools cover the workflow, and everything is **instance-agnostic**: the caller supplies the entire field configuration (which CSV columns map to which LACRM fields, how each one merges, and any create-time defaults) as tool arguments. No field names, merge rules, or use cases are built into the server.
+
+| Tool | Purpose |
+|------|---------|
+| `bulk_generate_template` | Produce a ready-to-fill CSV header plus a per-field report explaining what populating / blanking / omitting each column does |
+| `bulk_validate_csv` | Dry-run validation (no writes): row count, present vs. preserved columns, missing required columns/values, duplicate keys, and a time estimate |
+| `bulk_execute` | Launch a detached, throttled worker; returns a `run_id` immediately (requires `confirm: true`) |
+| `bulk_run_status` | Progress, per-row errors, and the path to the final report CSV |
+
+### Update merge model (column-presence)
+
+Bulk updates are **read-merge-write per contact**, so a partial CSV never clobbers fields it does not mention. A column **absent** from the CSV is always left unchanged. When a column **is present**, its `strategy` decides what happens:
+
+| Strategy | Cell has a value | Cell is blank | Column absent |
+|----------|------------------|---------------|---------------|
+| `replace` | overwrites the field | **clears the field** | preserved |
+| `preserve_if_blank` | overwrites the field | preserved (ignored) | preserved |
+| `union_semicolon` | added to the existing semicolon-delimited list (de-duplicated) | preserved | preserved |
+| `never_write` | always preserved | always preserved | preserved |
+
+Use `replace` for fields that should mirror the CSV exactly (a blank cell means "clear it"); `preserve_if_blank` for fill-only fields; `union_semicolon` for accumulate-style list fields; `never_write` to lock a field against this operation.
+
+### Throttle & detached execution
+
+`bulk_execute` spawns a separate worker process that calls LACRM strictly sequentially at >=1s spacing, so a multi-thousand-row run (which can take hours) proceeds independently of the request that started it and survives MCP/host restarts. Run state is persisted to disk — directory configurable via `LACRM_BULK_RUNS_DIR` (default: a `lacrm-bulk-runs` folder under the OS temp dir). A crashed run resumes from where it left off if re-launched against the same run's spec.
+
+### Typical workflow
+
+1. `bulk_generate_template` -> hand the user the CSV to fill and the per-field behavior report.
+2. `bulk_validate_csv` -> review row counts, which fields will change vs. be preserved, and any blocking errors. **Always preview before executing.**
+3. `bulk_execute` with `confirm: true` -> receive a `run_id`.
+4. `bulk_run_status` -> poll until `status` is `completed`, then fetch the report CSV.
+
 ## Available Tools
 
 ### Discovery Tools (10)
@@ -292,6 +327,17 @@ Use:
 | `get_contact` | Get a contact by ID |
 | `get_contacts_by_ids` | Get multiple contacts by IDs (up to 200) |
 | `search_contacts` | Search contacts by name, email, phone, or custom fields |
+
+### Bulk CSV Tools (4)
+
+See [Bulk CSV Operations](#bulk-csv-operations-v140) for the full workflow and merge model.
+
+| Tool | Description |
+|------|-------------|
+| `bulk_generate_template` | Generate a ready-to-fill CSV template + per-field behavior report for a bulk operation |
+| `bulk_validate_csv` | Dry-run validation of a bulk CSV against a field configuration (no writes) |
+| `bulk_execute` | Launch a detached, throttled (1 req/sec) bulk create/update worker; returns a run id |
+| `bulk_run_status` | Get progress, per-row errors, and the report CSV for a bulk run |
 
 ### Event Tools (6)
 
