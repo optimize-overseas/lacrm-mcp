@@ -15,145 +15,145 @@ import type { FieldSpec } from './types.js';
  * "Omit" relies on LACRM EditContact semantics: a field not included in the params is left unchanged.
  */
 describe('computeUpdateParams — replace strategy (default; blank clears)', () => {
-  const fields: FieldSpec[] = [{ column: '$ Offer', strategy: 'replace' }];
+  const fields: FieldSpec[] = [{ column: 'Status', strategy: 'replace' }];
 
   it('writes the value when the column is present with a value', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['$ Offer'], row: { '$ Offer': '$1,000' }, existing: {} });
-    expect(params).toEqual({ '$ Offer': '$1,000' });
+    const params = computeUpdateParams({ fields, presentColumns: ['Status'], row: { 'Status': 'active' }, existing: {} });
+    expect(params).toEqual({ 'Status': 'active' });
   });
 
   it('writes an empty string (CLEARS the field) when the column is present but blank', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['$ Offer'], row: { '$ Offer': '' }, existing: { '$ Offer': '$1,000' } });
-    expect(params).toEqual({ '$ Offer': '' });
+    const params = computeUpdateParams({ fields, presentColumns: ['Status'], row: { 'Status': '' }, existing: { 'Status': 'active' } });
+    expect(params).toEqual({ 'Status': '' });
   });
 
   it('omits the field (PRESERVES it) when the column is absent from the CSV', () => {
-    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { '$ Offer': '$1,000' } });
+    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { 'Status': 'active' } });
     expect(params).toEqual({});
   });
 
   it('trims surrounding whitespace from the value', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['$ Offer'], row: { '$ Offer': '  $1,000  ' }, existing: {} });
-    expect(params).toEqual({ '$ Offer': '$1,000' });
+    const params = computeUpdateParams({ fields, presentColumns: ['Status'], row: { 'Status': '  active  ' }, existing: {} });
+    expect(params).toEqual({ 'Status': 'active' });
   });
 
   it('treats a whitespace-only cell as blank (clears)', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['$ Offer'], row: { '$ Offer': '   ' }, existing: { '$ Offer': 'x' } });
-    expect(params).toEqual({ '$ Offer': '' });
+    const params = computeUpdateParams({ fields, presentColumns: ['Status'], row: { 'Status': '   ' }, existing: { 'Status': 'x' } });
+    expect(params).toEqual({ 'Status': '' });
   });
 });
 
 describe('computeUpdateParams — preserve_if_blank strategy (fill-only; blank never clears)', () => {
-  const fields: FieldSpec[] = [{ column: 'AA Contact ID', strategy: 'preserve_if_blank' }];
+  const fields: FieldSpec[] = [{ column: 'Legacy ID', strategy: 'preserve_if_blank' }];
 
   it('writes the value when present with a value', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['AA Contact ID'], row: { 'AA Contact ID': '12345' }, existing: { 'AA Contact ID': '99999' } });
-    expect(params).toEqual({ 'AA Contact ID': '12345' });
+    const params = computeUpdateParams({ fields, presentColumns: ['Legacy ID'], row: { 'Legacy ID': '12345' }, existing: { 'Legacy ID': '99999' } });
+    expect(params).toEqual({ 'Legacy ID': '12345' });
   });
 
   it('omits the field (preserves existing) when present but blank', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['AA Contact ID'], row: { 'AA Contact ID': '' }, existing: { 'AA Contact ID': '99999' } });
+    const params = computeUpdateParams({ fields, presentColumns: ['Legacy ID'], row: { 'Legacy ID': '' }, existing: { 'Legacy ID': '99999' } });
     expect(params).toEqual({});
   });
 
   it('omits the field when the column is absent', () => {
-    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { 'AA Contact ID': '99999' } });
+    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { 'Legacy ID': '99999' } });
     expect(params).toEqual({});
   });
 });
 
 describe('computeUpdateParams — union_semicolon strategy (accumulate; never clears)', () => {
-  const fields: FieldSpec[] = [{ column: 'Owner Name Aliases', strategy: 'union_semicolon' }];
+  const fields: FieldSpec[] = [{ column: 'Tags', strategy: 'union_semicolon' }];
 
   it('merges new values ahead of existing ones, de-duplicated, joined with "; "', () => {
     const params = computeUpdateParams({
       fields,
-      presentColumns: ['Owner Name Aliases'],
-      row: { 'Owner Name Aliases': 'Bob Smith; Robert Smith' },
-      existing: { 'Owner Name Aliases': 'Robert Smith; B. Smith' },
+      presentColumns: ['Tags'],
+      row: { 'Tags': 'vip; lead' },
+      existing: { 'Tags': 'lead; west' },
     });
-    expect(params).toEqual({ 'Owner Name Aliases': 'Bob Smith; Robert Smith; B. Smith' });
+    expect(params).toEqual({ 'Tags': 'vip; lead; west' });
   });
 
-  it('adds new aliases to an empty existing value', () => {
+  it('adds new tags to an empty existing value', () => {
     const params = computeUpdateParams({
       fields,
-      presentColumns: ['Owner Name Aliases'],
-      row: { 'Owner Name Aliases': 'Bob Smith' },
+      presentColumns: ['Tags'],
+      row: { 'Tags': 'vip' },
       existing: {},
     });
-    expect(params).toEqual({ 'Owner Name Aliases': 'Bob Smith' });
+    expect(params).toEqual({ 'Tags': 'vip' });
   });
 
   it('omits the field (preserves existing) when present but blank — never clears an accumulate field', () => {
     const params = computeUpdateParams({
       fields,
-      presentColumns: ['Owner Name Aliases'],
-      row: { 'Owner Name Aliases': '' },
-      existing: { 'Owner Name Aliases': 'Robert Smith' },
+      presentColumns: ['Tags'],
+      row: { 'Tags': '' },
+      existing: { 'Tags': 'lead' },
     });
     expect(params).toEqual({});
   });
 
   it('omits the field when the column is absent', () => {
-    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { 'Owner Name Aliases': 'Robert Smith' } });
+    const params = computeUpdateParams({ fields, presentColumns: [], row: {}, existing: { 'Tags': 'lead' } });
     expect(params).toEqual({});
   });
 
   it('ignores empty fragments and stray whitespace inside the list', () => {
     const params = computeUpdateParams({
       fields,
-      presentColumns: ['Owner Name Aliases'],
-      row: { 'Owner Name Aliases': ' Bob Smith ;; ' },
-      existing: { 'Owner Name Aliases': '  Robert Smith ; ' },
+      presentColumns: ['Tags'],
+      row: { 'Tags': ' vip ;; ' },
+      existing: { 'Tags': '  lead ; ' },
     });
-    expect(params).toEqual({ 'Owner Name Aliases': 'Bob Smith; Robert Smith' });
+    expect(params).toEqual({ 'Tags': 'vip; lead' });
   });
 });
 
 describe('computeUpdateParams — never_write strategy (always preserved)', () => {
-  const fields: FieldSpec[] = [{ column: 'Deceased Date', strategy: 'never_write' }];
+  const fields: FieldSpec[] = [{ column: 'Created Date', strategy: 'never_write' }];
 
   it('omits the field even when present with a value', () => {
-    const params = computeUpdateParams({ fields, presentColumns: ['Deceased Date'], row: { 'Deceased Date': '2024-01-01' }, existing: {} });
+    const params = computeUpdateParams({ fields, presentColumns: ['Created Date'], row: { 'Created Date': '2024-01-01' }, existing: {} });
     expect(params).toEqual({});
   });
 });
 
 describe('computeUpdateParams — field mapping and composition', () => {
   it('writes to a distinct LACRM field key when "field" differs from the CSV column', () => {
-    const fields: FieldSpec[] = [{ column: 'Owner Name', field: 'FullName', strategy: 'replace' }];
-    const params = computeUpdateParams({ fields, presentColumns: ['Owner Name'], row: { 'Owner Name': 'Jane Doe' }, existing: {} });
+    const fields: FieldSpec[] = [{ column: 'Full Name', field: 'FullName', strategy: 'replace' }];
+    const params = computeUpdateParams({ fields, presentColumns: ['Full Name'], row: { 'Full Name': 'Jane Doe' }, existing: {} });
     expect(params).toEqual({ FullName: 'Jane Doe' });
   });
 
-  it('composes a realistic row across all strategies (latest letter, no offer)', () => {
+  it('composes a realistic row across all strategies (present + blank value)', () => {
     const fields: FieldSpec[] = [
-      { column: 'Owner Name', field: 'FullName', strategy: 'replace' },
-      { column: 'Date Of Letter Distribution', strategy: 'replace' },
-      { column: '$ Offer', strategy: 'replace' },
-      { column: 'Owner Name Aliases', strategy: 'union_semicolon' },
-      { column: 'AA Contact ID', strategy: 'preserve_if_blank' },
-      { column: 'Deceased Date', strategy: 'never_write' },
+      { column: 'Full Name', field: 'FullName', strategy: 'replace' },
+      { column: 'Last Contacted', strategy: 'replace' },
+      { column: 'Status', strategy: 'replace' },
+      { column: 'Tags', strategy: 'union_semicolon' },
+      { column: 'Legacy ID', strategy: 'preserve_if_blank' },
+      { column: 'Created Date', strategy: 'never_write' },
     ];
     const params = computeUpdateParams({
       fields,
-      presentColumns: ['Owner Name', 'Date Of Letter Distribution', '$ Offer', 'Owner Name Aliases', 'AA Contact ID', 'Deceased Date'],
+      presentColumns: ['Full Name', 'Last Contacted', 'Status', 'Tags', 'Legacy ID', 'Created Date'],
       row: {
-        'Owner Name': 'Jane Doe',
-        'Date Of Letter Distribution': '2026-06-20',
-        '$ Offer': '', // generic letter: no offer -> CLEAR the stale value
-        'Owner Name Aliases': '',
-        'AA Contact ID': '',
-        'Deceased Date': '2024-01-01',
+        'Full Name': 'Jane Doe',
+        'Last Contacted': '2026-06-20',
+        'Status': '', // present + blank -> CLEAR the stale value
+        'Tags': '',
+        'Legacy ID': '',
+        'Created Date': '2024-01-01',
       },
-      existing: { '$ Offer': '$1,000', 'Owner Name Aliases': 'J. Doe', 'AA Contact ID': '777', 'Deceased Date': '' },
+      existing: { 'Status': 'active', 'Tags': 'west', 'Legacy ID': '777', 'Created Date': '' },
     });
-    // FullName + date written; $ Offer cleared; aliases/AA preserved (omitted); deceased never written.
+    // FullName + date written; Status cleared; tags/Legacy ID preserved (omitted); created date never written.
     expect(params).toEqual({
       FullName: 'Jane Doe',
-      'Date Of Letter Distribution': '2026-06-20',
-      '$ Offer': '',
+      'Last Contacted': '2026-06-20',
+      'Status': '',
     });
   });
 });

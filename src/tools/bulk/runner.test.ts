@@ -37,13 +37,13 @@ const UPDATE_SPEC: BulkRunSpec = {
   createdAt: FIXED_NOW,
   keyColumn: 'Contact ID',
   fields: [
-    { column: '$ Offer', strategy: 'replace' },
-    { column: 'Owner Name Aliases', strategy: 'union_semicolon' },
+    { column: 'Status', strategy: 'replace' },
+    { column: 'Tags', strategy: 'union_semicolon' },
   ],
-  presentColumns: ['$ Offer', 'Owner Name Aliases'],
+  presentColumns: ['Status', 'Tags'],
   rows: [
-    { 'Contact ID': '1', '$ Offer': '$5', 'Owner Name Aliases': 'Bob' },
-    { 'Contact ID': '2', '$ Offer': '', 'Owner Name Aliases': '' },
+    { 'Contact ID': '1', 'Status': 'A', 'Tags': 'vip' },
+    { 'Contact ID': '2', 'Status': '', 'Tags': '' },
   ],
 };
 
@@ -61,10 +61,10 @@ describe('runBulk — update mode', () => {
     const fns = client.calls.map((c) => c.fn);
     expect(fns).toEqual(['GetContact', 'EditContact', 'GetContact', 'EditContact']);
 
-    // row 1: $ Offer set, alias merged
-    expect(client.calls[1].params).toEqual({ ContactId: '1', '$ Offer': '$5', 'Owner Name Aliases': 'Bob' });
-    // row 2: $ Offer cleared (present+blank); aliases omitted (blank union preserves)
-    expect(client.calls[3].params).toEqual({ ContactId: '2', '$ Offer': '' });
+    // row 1: Status set, tags merged
+    expect(client.calls[1].params).toEqual({ ContactId: '1', 'Status': 'A', 'Tags': 'vip' });
+    // row 2: Status cleared (present+blank); tags omitted (blank union preserves)
+    expect(client.calls[3].params).toEqual({ ContactId: '2', 'Status': '' });
 
     expect(state.results.map((r) => r.status)).toEqual(['updated', 'updated']);
   });
@@ -76,9 +76,9 @@ describe('runBulk — update mode', () => {
       ...UPDATE_SPEC,
       runId: 'r-nochange',
       // only an accumulate field, left blank -> nothing to write
-      fields: [{ column: 'Owner Name Aliases', strategy: 'union_semicolon' }],
-      presentColumns: ['Owner Name Aliases'],
-      rows: [{ 'Contact ID': '1', 'Owner Name Aliases': '' }],
+      fields: [{ column: 'Tags', strategy: 'union_semicolon' }],
+      presentColumns: ['Tags'],
+      rows: [{ 'Contact ID': '1', 'Tags': '' }],
     };
     const state = await runBulk(spec, deps(store, client));
     expect(client.calls.map((c) => c.fn)).toEqual(['GetContact']); // no EditContact
@@ -110,8 +110,8 @@ describe('runBulk — update mode', () => {
       ...UPDATE_SPEC,
       runId: 'r-createmissing',
       createIfMissing: true,
-      createConfig: { nameColumn: 'Owner Name', customFields: [{ column: '$ Offer' }] },
-      rows: [{ 'Contact ID': '1', 'Owner Name': 'Jane', '$ Offer': '$5' }],
+      createConfig: { nameColumn: 'Full Name', customFields: [{ column: 'Status' }] },
+      rows: [{ 'Contact ID': '1', 'Full Name': 'Jane', 'Status': 'A' }],
     };
     const state = await runBulk(spec, deps(store, client));
     expect(client.calls.map((c) => c.fn)).toEqual(['GetContact', 'CreateContact']);
@@ -162,16 +162,16 @@ describe('runBulk — create mode', () => {
       runId: 'rc',
       operation: 'create',
       createdAt: FIXED_NOW,
-      createConfig: { nameColumn: 'Owner Name', assignedTo: 'U1', customFields: [{ column: '$ Offer' }] },
-      presentColumns: ['Owner Name', '$ Offer'],
+      createConfig: { nameColumn: 'Full Name', assignedTo: 'U1', customFields: [{ column: 'Status' }] },
+      presentColumns: ['Full Name', 'Status'],
       rows: [
-        { 'Owner Name': 'Jane', '$ Offer': '$5' },
-        { 'Owner Name': 'Bob', '$ Offer': '' },
+        { 'Full Name': 'Jane', 'Status': 'A' },
+        { 'Full Name': 'Bob', 'Status': '' },
       ],
     };
     const state = await runBulk(spec, deps(store, client));
     expect(client.calls.map((c) => c.fn)).toEqual(['CreateContact', 'CreateContact']);
-    expect(client.calls[0].params).toMatchObject({ Name: 'Jane', AssignedTo: 'U1', '$ Offer': '$5' });
+    expect(client.calls[0].params).toMatchObject({ Name: 'Jane', AssignedTo: 'U1', 'Status': 'A' });
     expect(state.results.every((r) => r.status === 'created')).toBe(true);
     expect(state.succeeded).toBe(2);
   });

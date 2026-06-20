@@ -3,10 +3,10 @@ import { validateBulkCsv } from './validate.js';
 import type { FieldSpec } from './types.js';
 
 const UPDATE_FIELDS: FieldSpec[] = [
-  { column: 'Owner Name', field: 'FullName', strategy: 'replace' },
-  { column: '$ Offer', strategy: 'replace' },
-  { column: 'Owner Name Aliases', strategy: 'union_semicolon' },
-  { column: 'County', strategy: 'replace' },
+  { column: 'Full Name', field: 'FullName', strategy: 'replace' },
+  { column: 'Status', strategy: 'replace' },
+  { column: 'Tags', strategy: 'union_semicolon' },
+  { column: 'Region', strategy: 'replace' },
 ];
 
 describe('validateBulkCsv — update mode', () => {
@@ -16,19 +16,19 @@ describe('validateBulkCsv — update mode', () => {
       keyColumn: 'Contact ID',
       fields: UPDATE_FIELDS,
       parsed: {
-        headers: ['Contact ID', 'Owner Name', '$ Offer'],
+        headers: ['Contact ID', 'Full Name', 'Status'],
         rows: [
-          { 'Contact ID': '1', 'Owner Name': 'Jane', '$ Offer': '$5' },
-          { 'Contact ID': '2', 'Owner Name': 'Bob', '$ Offer': '' },
+          { 'Contact ID': '1', 'Full Name': 'Jane', 'Status': 'A' },
+          { 'Contact ID': '2', 'Full Name': 'Bob', 'Status': '' },
         ],
       },
     });
     expect(result.ok).toBe(true);
     expect(result.rowCount).toBe(2);
     // configured columns that ARE present (will be acted on):
-    expect(result.presentColumns.sort()).toEqual(['$ Offer', 'Owner Name'].sort());
+    expect(result.presentColumns.sort()).toEqual(['Status', 'Full Name'].sort());
     // configured columns ABSENT from the file (left unchanged):
-    expect(result.preservedColumns.sort()).toEqual(['County', 'Owner Name Aliases'].sort());
+    expect(result.preservedColumns.sort()).toEqual(['Region', 'Tags'].sort());
     expect(result.errors).toEqual([]);
   });
 
@@ -37,7 +37,7 @@ describe('validateBulkCsv — update mode', () => {
       operation: 'update',
       keyColumn: 'Contact ID',
       fields: UPDATE_FIELDS,
-      parsed: { headers: ['Owner Name'], rows: [{ 'Owner Name': 'Jane' }] },
+      parsed: { headers: ['Full Name'], rows: [{ 'Full Name': 'Jane' }] },
     });
     expect(result.ok).toBe(false);
     expect(result.missingRequiredColumns).toContain('Contact ID');
@@ -48,7 +48,7 @@ describe('validateBulkCsv — update mode', () => {
       operation: 'update',
       keyColumn: 'Contact ID',
       fields: UPDATE_FIELDS,
-      parsed: { headers: ['Contact ID', 'Owner Name'], rows: [{ 'Contact ID': '', 'Owner Name': 'Jane' }] },
+      parsed: { headers: ['Contact ID', 'Full Name'], rows: [{ 'Contact ID': '', 'Full Name': 'Jane' }] },
     });
     expect(result.ok).toBe(false);
     expect(result.rowsMissingRequiredValues).toEqual([{ rowNumber: 1, column: 'Contact ID' }]);
@@ -80,15 +80,15 @@ describe('validateBulkCsv — update mode', () => {
 
 describe('validateBulkCsv — create mode', () => {
   const CREATE_FIELDS: FieldSpec[] = [
-    { column: 'Owner Name', field: 'FullName', strategy: 'replace', required: true },
-    { column: '$ Offer', strategy: 'replace' },
+    { column: 'Full Name', field: 'FullName', strategy: 'replace', required: true },
+    { column: 'Status', strategy: 'replace' },
   ];
 
   it('passes a valid create file (no key column required)', () => {
     const result = validateBulkCsv({
       operation: 'create',
       fields: CREATE_FIELDS,
-      parsed: { headers: ['Owner Name', '$ Offer'], rows: [{ 'Owner Name': 'Jane', '$ Offer': '$5' }] },
+      parsed: { headers: ['Full Name', 'Status'], rows: [{ 'Full Name': 'Jane', 'Status': 'A' }] },
     });
     expect(result.ok).toBe(true);
   });
@@ -97,19 +97,19 @@ describe('validateBulkCsv — create mode', () => {
     const result = validateBulkCsv({
       operation: 'create',
       fields: CREATE_FIELDS,
-      parsed: { headers: ['$ Offer'], rows: [{ '$ Offer': '$5' }] },
+      parsed: { headers: ['Status'], rows: [{ 'Status': 'A' }] },
     });
     expect(result.ok).toBe(false);
-    expect(result.missingRequiredColumns).toContain('Owner Name');
+    expect(result.missingRequiredColumns).toContain('Full Name');
   });
 
   it('blocks when a required field value is blank in a row', () => {
     const result = validateBulkCsv({
       operation: 'create',
       fields: CREATE_FIELDS,
-      parsed: { headers: ['Owner Name', '$ Offer'], rows: [{ 'Owner Name': '', '$ Offer': '$5' }] },
+      parsed: { headers: ['Full Name', 'Status'], rows: [{ 'Full Name': '', 'Status': 'A' }] },
     });
     expect(result.ok).toBe(false);
-    expect(result.rowsMissingRequiredValues).toEqual([{ rowNumber: 1, column: 'Owner Name' }]);
+    expect(result.rowsMissingRequiredValues).toEqual([{ rowNumber: 1, column: 'Full Name' }]);
   });
 });

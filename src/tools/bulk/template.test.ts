@@ -3,21 +3,21 @@ import { generateTemplate } from './template.js';
 import type { FieldSpec } from './types.js';
 
 const UPDATE_FIELDS: FieldSpec[] = [
-  { column: '$ Offer', strategy: 'replace', example: '$1,000', description: 'Latest offer amount' },
-  { column: 'Owner Name Aliases', strategy: 'union_semicolon', example: 'Bob Smith; B. Smith' },
-  { column: 'AA Contact ID', strategy: 'preserve_if_blank' },
-  { column: 'Deceased Date', strategy: 'never_write' },
+  { column: 'Status', strategy: 'replace', example: 'active, verified', description: 'Account status' },
+  { column: 'Tags', strategy: 'union_semicolon', example: 'vip; lead' },
+  { column: 'Legacy ID', strategy: 'preserve_if_blank' },
+  { column: 'Created Date', strategy: 'never_write' },
 ];
 
 describe('generateTemplate — update mode', () => {
   it('puts the key column first, then field columns, excluding never_write fields', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS });
-    expect(t.columns).toEqual(['Contact ID', '$ Offer', 'Owner Name Aliases', 'AA Contact ID']);
+    expect(t.columns).toEqual(['Contact ID', 'Status', 'Tags', 'Legacy ID']);
   });
 
   it('produces a header-only CSV by default (single line)', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS });
-    expect(t.csv).toBe('Contact ID,$ Offer,Owner Name Aliases,AA Contact ID');
+    expect(t.csv).toBe('Contact ID,Status,Tags,Legacy ID');
   });
 
   it('reports the key column as a required identifier', () => {
@@ -30,37 +30,37 @@ describe('generateTemplate — update mode', () => {
 
   it('explains replace behavior: blank clears, omitted preserves', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS });
-    const offer = t.report.find((r) => r.column === '$ Offer')!;
-    expect(offer.strategy).toBe('replace');
-    expect(offer.behavior.toLowerCase()).toContain('blank');
-    expect(offer.behavior.toLowerCase()).toContain('clear');
-    expect(offer.behavior.toLowerCase()).toContain('omit');
-    expect(offer.description).toBe('Latest offer amount');
+    const status = t.report.find((r) => r.column === 'Status')!;
+    expect(status.strategy).toBe('replace');
+    expect(status.behavior.toLowerCase()).toContain('blank');
+    expect(status.behavior.toLowerCase()).toContain('clear');
+    expect(status.behavior.toLowerCase()).toContain('omit');
+    expect(status.description).toBe('Account status');
   });
 
   it('explains accumulate (union) behavior: added and de-duplicated, never cleared', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS });
-    const aliases = t.report.find((r) => r.column === 'Owner Name Aliases')!;
-    expect(aliases.strategy).toBe('union_semicolon');
-    expect(aliases.behavior.toLowerCase()).toContain('add');
+    const tags = t.report.find((r) => r.column === 'Tags')!;
+    expect(tags.strategy).toBe('union_semicolon');
+    expect(tags.behavior.toLowerCase()).toContain('add');
   });
 
   it('lists never_write fields in the report (as locked) but not in the fillable columns', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS });
-    expect(t.columns).not.toContain('Deceased Date');
-    const deceased = t.report.find((r) => r.column === 'Deceased Date')!;
-    expect(deceased.strategy).toBe('never_write');
-    expect(deceased.behavior.toLowerCase()).toContain('never');
+    expect(t.columns).not.toContain('Created Date');
+    const created = t.report.find((r) => r.column === 'Created Date')!;
+    expect(created.strategy).toBe('never_write');
+    expect(created.behavior.toLowerCase()).toContain('never');
   });
 
   it('adds one example row when requested', () => {
     const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS, includeExampleRow: true });
     const lines = t.csv.split('\n');
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe('Contact ID,$ Offer,Owner Name Aliases,AA Contact ID');
+    expect(lines[0]).toBe('Contact ID,Status,Tags,Legacy ID');
     // example values come from each field's `example`; key + missing examples are blank.
-    // "$1,000" is quoted (contains a comma); the semicolon list is not (semicolons need no quoting).
-    expect(lines[1]).toBe(',"$1,000",Bob Smith; B. Smith,');
+    // "active, verified" is quoted (contains a comma); the semicolon list is not (semicolons need no quoting).
+    expect(lines[1]).toBe(',"active, verified",vip; lead,');
   });
 });
 
@@ -76,21 +76,21 @@ describe('generateTemplate — CSV escaping', () => {
 
 describe('generateTemplate — create mode', () => {
   const CREATE_FIELDS: FieldSpec[] = [
-    { column: 'Owner Name', strategy: 'replace', required: true },
-    { column: '$ Offer', strategy: 'replace' },
+    { column: 'Full Name', strategy: 'replace', required: true },
+    { column: 'Status', strategy: 'replace' },
   ];
 
   it('has no key column and marks required fields', () => {
     const t = generateTemplate({ operation: 'create', fields: CREATE_FIELDS });
-    expect(t.columns).toEqual(['Owner Name', '$ Offer']);
-    const name = t.report.find((r) => r.column === 'Owner Name')!;
+    expect(t.columns).toEqual(['Full Name', 'Status']);
+    const name = t.report.find((r) => r.column === 'Full Name')!;
     expect(name.required).toBe(true);
     expect(name.behavior.toLowerCase()).toContain('required');
   });
 
   it('describes create behavior as setting values on a new contact', () => {
     const t = generateTemplate({ operation: 'create', fields: CREATE_FIELDS });
-    const offer = t.report.find((r) => r.column === '$ Offer')!;
-    expect(offer.behavior.toLowerCase()).toContain('new contact');
+    const status = t.report.find((r) => r.column === 'Status')!;
+    expect(status.behavior.toLowerCase()).toContain('new contact');
   });
 });

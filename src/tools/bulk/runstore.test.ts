@@ -15,9 +15,9 @@ const SPEC: BulkRunSpec = {
   operation: 'update',
   createdAt: '2026-06-20T00:00:00Z',
   keyColumn: 'Contact ID',
-  fields: [{ column: '$ Offer', strategy: 'replace' }],
-  presentColumns: ['$ Offer'],
-  rows: [{ 'Contact ID': '1', '$ Offer': '$5' }],
+  fields: [{ column: 'Status', strategy: 'replace' }],
+  presentColumns: ['Status'],
+  rows: [{ 'Contact ID': '1', 'Status': 'A' }],
 };
 
 const STATE: BulkRunState = {

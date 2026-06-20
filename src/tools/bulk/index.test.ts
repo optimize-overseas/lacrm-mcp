@@ -25,8 +25,8 @@ async function callJson(handler: Handler, args: any) {
 }
 
 const UPDATE_FIELDS = [
-  { column: '$ Offer', strategy: 'replace' },
-  { column: 'Owner Name Aliases', strategy: 'union_semicolon' },
+  { column: 'Status', strategy: 'replace' },
+  { column: 'Tags', strategy: 'union_semicolon' },
 ];
 
 describe('registerBulkTools', () => {
@@ -44,9 +44,9 @@ describe('registerBulkTools', () => {
       key_column: 'Contact ID',
       fields: UPDATE_FIELDS,
     });
-    expect(json.columns).toEqual(['Contact ID', '$ Offer', 'Owner Name Aliases']);
-    expect(json.csv.split('\n')[0]).toBe('Contact ID,$ Offer,Owner Name Aliases');
-    expect(json.report.find((r: any) => r.column === '$ Offer').behavior.toLowerCase()).toContain('clear');
+    expect(json.columns).toEqual(['Contact ID', 'Status', 'Tags']);
+    expect(json.csv.split('\n')[0]).toBe('Contact ID,Status,Tags');
+    expect(json.report.find((r: any) => r.column === 'Status').behavior.toLowerCase()).toContain('clear');
   });
 
   it('bulk_validate_csv validates inline content and includes a time estimate', async () => {
@@ -55,12 +55,12 @@ describe('registerBulkTools', () => {
       operation: 'update',
       key_column: 'Contact ID',
       fields: UPDATE_FIELDS,
-      csv_content: 'Contact ID,$ Offer\n1,$5\n2,\n',
+      csv_content: 'Contact ID,Status\n1,A\n2,\n',
     });
     expect(json.ok).toBe(true);
     expect(json.rowCount).toBe(2);
-    expect(json.presentColumns).toEqual(['$ Offer']);
-    expect(json.preservedColumns).toContain('Owner Name Aliases');
+    expect(json.presentColumns).toEqual(['Status']);
+    expect(json.preservedColumns).toContain('Tags');
     expect(json.estimate.calls).toBe(4); // 2 rows * 2 calls/row (update)
     expect(json.estimate.seconds).toBe(4); // 4 calls * 1s
   });
@@ -71,7 +71,7 @@ describe('registerBulkTools', () => {
       operation: 'update',
       key_column: 'Contact ID',
       fields: UPDATE_FIELDS,
-      csv_content: '$ Offer\n$5\n', // no Contact ID column
+      csv_content: 'Status\nA\n', // no Contact ID column
     });
     expect(json.ok).toBe(false);
     expect(json.missingRequiredColumns).toContain('Contact ID');
@@ -83,7 +83,7 @@ describe('registerBulkTools', () => {
       operation: 'update',
       key_column: 'Contact ID',
       fields: UPDATE_FIELDS,
-      csv_content: 'Contact ID,$ Offer\n1,$5\n',
+      csv_content: 'Contact ID,Status\n1,A\n',
     });
     expect(json.launched).toBe(false);
     expect(json.reason).toBe('confirmation_required');
@@ -95,7 +95,7 @@ describe('registerBulkTools', () => {
       operation: 'update',
       key_column: 'Contact ID',
       fields: UPDATE_FIELDS,
-      csv_content: '$ Offer\n$5\n',
+      csv_content: 'Status\nA\n',
       confirm: true,
     });
     expect(json.launched).toBe(false);
