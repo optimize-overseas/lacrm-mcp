@@ -48,8 +48,8 @@ Supports name-based resolution: use status_name instead of status_id, and custom
         status_name: z.string().optional().describe('Initial status name (case-insensitive, auto-resolved to ID). Mutually exclusive with status_id.'),
         note: z.string().optional().describe('Historical note for the item'),
         run_automation: z.boolean().optional().describe('Run status automation (default: false)'),
-        custom_fields: z.record(z.unknown()).optional().describe('Custom pipeline field values keyed by field ID. Mutually exclusive with custom_field_names.'),
-        custom_field_names: z.record(z.unknown()).optional().describe('Custom pipeline field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields.')
+        custom_fields: z.record(z.unknown()).optional().describe('Custom pipeline field values keyed by field NAME, written verbatim (LACRM v2 ignores ID-keyed writes). Prefer custom_field_names for validated writes. Mutually exclusive with custom_field_names.'),
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom pipeline field values keyed by field name (case-insensitive; validated against the pipeline fields + dropdown options, then written by name). Mutually exclusive with custom_fields.')
       }
     },
     async (args) => {
@@ -125,8 +125,8 @@ Supports name-based resolution: use status_name instead of status_id, and custom
         status_name: z.string().optional().describe('New status name (case-insensitive, auto-resolved to ID). Mutually exclusive with status_id. Requires pipeline_id.'),
         note: z.string().optional().describe('Add a historical note'),
         run_automation: z.boolean().optional().describe('Run status automation (default: false)'),
-        custom_fields: z.record(z.unknown()).optional().describe('Custom field values to update keyed by field ID. Mutually exclusive with custom_field_names.'),
-        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields. Requires pipeline_id.')
+        custom_fields: z.record(z.unknown()).optional().describe('Custom field values to update keyed by field NAME, written verbatim (LACRM v2 ignores ID-keyed writes). Prefer custom_field_names. Mutually exclusive with custom_field_names.'),
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive; validated + written by name). Mutually exclusive with custom_fields. Requires pipeline_id.')
       }
     },
     async (args) => {

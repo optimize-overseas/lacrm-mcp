@@ -82,8 +82,8 @@ Returns the new ContactId on success.`,
         website: z.array(websiteSchema).optional().describe('Website URLs'),
         background_info: z.string().optional().describe('Additional notes/background'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format. Use 0000-mm-dd for annual dates.'),
-        custom_fields: z.record(z.unknown()).optional().describe('Custom field values keyed by field ID. Mutually exclusive with custom_field_names.'),
-        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields.')
+        custom_fields: z.record(z.unknown()).optional().describe('Custom field values keyed by field NAME, written verbatim with no dropdown validation (LACRM v2 ignores ID-keyed custom-field writes). Prefer custom_field_names for validated writes. Mutually exclusive with custom_field_names.'),
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive; validated against the account fields + dropdown options, then written by name). Mutually exclusive with custom_fields.')
       }
     },
     async (args) => {
@@ -186,7 +186,7 @@ Supports custom_field_names for name-based custom field resolution.`,
         background_info: z.string().optional().describe('Additional notes'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format'),
         custom_fields: z.record(z.unknown()).optional().describe('Custom field values to update keyed by field ID. Mutually exclusive with custom_field_names.'),
-        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive, auto-resolved to IDs). Mutually exclusive with custom_fields.')
+        custom_field_names: z.record(z.unknown()).optional().describe('Custom field values keyed by field name (case-insensitive; validated against the account fields + dropdown options, then written by name). Mutually exclusive with custom_fields.')
       }
     },
     async (args) => {
