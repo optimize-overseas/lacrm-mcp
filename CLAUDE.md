@@ -45,7 +45,7 @@ src/
     errors.ts       - Error classes + formatErrorForLLM()
     logger.ts       - stderr-only logger (stdout is MCP protocol)
     summarize.ts    - summarizeResults() for list-returning tools (page_count, not total — v1.3.1)
-    resolve-names.ts - Name-to-ID resolution (status, user, calendar, custom fields) (v1.3.0)
+    resolve-names.ts - Name resolution: status/user/calendar names->IDs; custom-field names validated + written BY NAME (v1.4.1 — v2 ignores ID-keyed custom-field writes; defensive wrapped-vs-array parse)
     count-all.ts    - Auto-pagination for count_only mode (v1.3.0, pagination fix v1.3.1)
   types/
     common.ts       - Shared types (Uid, ApiResponse, ToolResult, etc.)

@@ -146,7 +146,7 @@ Single-record tools (e.g., `get_contact`, `get_task`, `get_pipeline_item`) retur
 
 ## Name Resolution (v1.3.0)
 
-Many LACRM API parameters require internal IDs (status IDs, user IDs, calendar IDs, custom field IDs). In v1.3.0, name-based alternatives were added so the caller can pass human-readable names instead. The server resolves names to IDs at runtime by querying the LACRM API. All lookups are case-insensitive, and if a name cannot be resolved the error message lists all available options.
+Many LACRM API parameters require internal IDs (status IDs, user IDs, calendar IDs, custom field IDs). In v1.3.0, name-based alternatives were added so the caller can pass human-readable names instead. The server resolves names to the values the LACRM API expects at runtime — status/user/calendar IDs, and (for custom fields) the field **name** LACRM writes by. All lookups are case-insensitive, and if a name cannot be resolved the error message lists all available options.
 
 These parameters are **instance-agnostic** -- they work with any LACRM account regardless of how statuses, users, calendars, or custom fields are configured.
 
@@ -494,7 +494,9 @@ Pass field names directly as keys. The server resolves names to IDs automaticall
 
 Invalid field names return an error listing available fields. Invalid dropdown values return an error listing valid options.
 
-### Using `custom_fields` (ID-based fallback)
+### Using `custom_fields` (verbatim, by field name — no validation)
+
+> LACRM v2 writes custom fields by their **name** at the top level; a numeric CustomFieldId is silently ignored on write. `custom_fields` writes its keys verbatim, so use field **names** as keys. Use `custom_field_names` instead when you want dropdown/option validation.
 
 1. Call `get_custom_fields` with `record_type="Contact"` or `record_type="Company"` (for contacts/companies) or `get_pipeline_custom_fields` with the `pipeline_id` (for pipeline items)
 2. Note the field names, types, required status, and valid options

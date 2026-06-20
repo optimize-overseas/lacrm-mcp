@@ -35,6 +35,19 @@ interface CustomFieldInfo {
 }
 
 /**
+ * Normalize a LACRM list response to an array. v2 returns some lists as a bare
+ * array (GetUsers / GetCalendars / GetPipelines / GetPipelineStatuses) and others
+ * wrapped as `{ Results, HasMoreResults }` (GetCustomFields / GetGroups). Accept a
+ * bare array, the endpoint's own wrapper key, or a generic `Results` wrapper — so
+ * a resolver never silently returns `[]` just because the shape changed.
+ */
+function asArray<T>(result: unknown, wrapperKey: string): T[] {
+  if (Array.isArray(result)) return result as T[];
+  const obj = (result ?? {}) as Record<string, unknown>;
+  return ((obj[wrapperKey] as T[] | undefined) ?? (obj.Results as T[] | undefined) ?? []);
+}
+
+/**
  * Resolve pipeline status names to their IDs.
  *
  * @param client - LACRM API client
@@ -48,8 +61,8 @@ export async function resolveStatusNames(
   pipelineId: string,
   names: string[]
 ): Promise<string[]> {
-  const result = await client.call<StatusInfo[]>('GetPipelineStatuses', { PipelineId: pipelineId });
-  const statuses = Array.isArray(result) ? result : [];
+  const result = await client.call('GetPipelineStatuses', { PipelineId: pipelineId });
+  const statuses = asArray<StatusInfo>(result, 'Results');
   const resolved: string[] = [];
   const unmatched: string[] = [];
 
@@ -85,8 +98,8 @@ export async function resolveUserNames(
   client: LacrmClient,
   names: string[]
 ): Promise<string[]> {
-  const result = await client.call<UserInfo[]>('GetUsers', {});
-  const users = Array.isArray(result) ? result : [];
+  const result = await client.call('GetUsers', {});
+  const users = asArray<UserInfo>(result, 'Users');
   const resolved: string[] = [];
   const unmatched: string[] = [];
 
@@ -123,8 +136,8 @@ export async function resolveCalendarNames(
   client: LacrmClient,
   names: string[]
 ): Promise<string[]> {
-  const result = await client.call<CalendarInfo[]>('GetCalendars', {});
-  const calendars = Array.isArray(result) ? result : [];
+  const result = await client.call('GetCalendars', {});
+  const calendars = asArray<CalendarInfo>(result, 'Calendars');
   const resolved: string[] = [];
   const unmatched: string[] = [];
 
@@ -147,16 +160,19 @@ export async function resolveCalendarNames(
 }
 
 /**
- * Resolve custom field display names to their IDs and validate dropdown values.
+ * Validate custom-field display names against the account's fields and build the
+ * write params for Create/Edit.
  *
- * Returns a new object with field IDs as keys instead of field names.
- * For dropdown fields, validates that the supplied value is among the allowed options.
+ * LACRM v2 writes custom fields by their NAME at the top level (the same keys
+ * GetContact returns; a CustomFieldId is **silently ignored** on write), so this
+ * returns a `{ <fieldName>: value }` map — NOT field IDs. For dropdown/radio
+ * fields it validates the value against the allowed options.
  *
  * @param client - LACRM API client
  * @param fieldNamesObj - Object mapping field names to their values
  * @param recordType - Record type for field lookup (e.g., 'Contact', 'Company', 'Pipeline')
  * @param pipelineId - Pipeline ID (required when recordType is 'Pipeline')
- * @returns Object with CustomFieldId keys mapped to the same values
+ * @returns Object keyed by field NAME mapped to the same values (spread into the API params)
  * @throws Error if any field name is not found or a dropdown value is invalid
  */
 export async function resolveCustomFieldNames(
@@ -173,8 +189,8 @@ export async function resolveCustomFieldNames(
     params.RecordType = recordType;
   }
 
-  const result = await client.call<CustomFieldInfo[]>('GetCustomFields', params);
-  const fields = Array.isArray(result) ? result : [];
+  const result = await client.call('GetCustomFields', params);
+  const fields = asArray<CustomFieldInfo>(result, 'Results');
 
   const resolved: Record<string, unknown> = {};
   const unmatched: string[] = [];
@@ -190,7 +206,8 @@ export async function resolveCustomFieldNames(
           throw new Error(`Invalid value "${strValue}" for field "${match.Name}". Valid options: ${match.Options.join(', ')}`);
         }
       }
-      resolved[match.CustomFieldId] = value;
+      // v2 writes custom fields by NAME at the top level (ID-keyed writes no-op).
+      resolved[match.Name] = value;
     } else {
       unmatched.push(name);
     }
