@@ -3,17 +3,17 @@ import { parseCsv, csvField, csvRow } from './csv.js';
 
 describe('parseCsv', () => {
   it('parses a header row and returns rows keyed by header', () => {
-    const { headers, rows } = parseCsv('Contact ID,$ Offer\n123,$1000\n456,$2000\n');
-    expect(headers).toEqual(['Contact ID', '$ Offer']);
+    const { headers, rows } = parseCsv('Contact ID,Status\n123,active\n456,pending\n');
+    expect(headers).toEqual(['Contact ID', 'Status']);
     expect(rows).toEqual([
-      { 'Contact ID': '123', '$ Offer': '$1000' },
-      { 'Contact ID': '456', '$ Offer': '$2000' },
+      { 'Contact ID': '123', 'Status': 'active' },
+      { 'Contact ID': '456', 'Status': 'pending' },
     ]);
   });
 
   it('handles quoted fields that contain commas', () => {
-    const { rows } = parseCsv('Owner Name,City\n"Smith, Robert",Dallas\n');
-    expect(rows[0]).toEqual({ 'Owner Name': 'Smith, Robert', City: 'Dallas' });
+    const { rows } = parseCsv('Full Name,City\n"Smith, Robert",Dallas\n');
+    expect(rows[0]).toEqual({ 'Full Name': 'Smith, Robert', City: 'Dallas' });
   });
 
   it('handles escaped (doubled) quotes inside a quoted field', () => {
@@ -38,8 +38,8 @@ describe('parseCsv', () => {
   });
 
   it('returns no rows for a header-only file', () => {
-    const { headers, rows } = parseCsv('Contact ID,$ Offer\n');
-    expect(headers).toEqual(['Contact ID', '$ Offer']);
+    const { headers, rows } = parseCsv('Contact ID,Status\n');
+    expect(headers).toEqual(['Contact ID', 'Status']);
     expect(rows).toEqual([]);
   });
 
