@@ -11,6 +11,7 @@
  */
 
 import type { FieldSpec } from './types.js';
+import { mergeAddressIfAbsent, buildAddressFromRow, type AddressColumnMapping, type AddressObject } from './address.js';
 
 /** Default separator used to join union-merged list values. */
 export const DEFAULT_JOIN_SEPARATOR = '; ';
@@ -24,6 +25,8 @@ export interface ComputeUpdateParamsInput {
   row: Record<string, string>;
   /** The existing LACRM contact (GetContact result), used for union merges. */
   existing: Record<string, unknown>;
+  /** Optional structured-address mapping; when set, the uploaded address is appended if absent. */
+  addressConfig?: AddressColumnMapping;
 }
 
 /** Split a semicolon-delimited value into trimmed, non-empty fragments. */
@@ -84,6 +87,18 @@ export function computeUpdateParams(input: ComputeUpdateParamsInput): Record<str
         }
         break;
     }
+  }
+
+  // Structured-address append-if-absent (update mode). The uploaded address is added
+  // only when it is not already on the contact; on a duplicate the CRM copy is kept and
+  // the file's version discarded. EditContact replaces the whole Address array, so we
+  // emit the COMPLETE merged array (existing entries carried verbatim, new one appended).
+  if (input.addressConfig) {
+    const existingRaw = (input.existing as Record<string, unknown>).Address;
+    const existingAddresses = (Array.isArray(existingRaw) ? existingRaw : []) as AddressObject[];
+    const candidate = buildAddressFromRow(input.addressConfig, input.row);
+    const merged = mergeAddressIfAbsent(existingAddresses, candidate);
+    if (merged.changed) params.Address = merged.addresses;
   }
 
   return params;
