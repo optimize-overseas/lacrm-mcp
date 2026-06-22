@@ -119,6 +119,49 @@ describe('runBulk — update mode', () => {
     expect(state.results[0].contactId).toBeDefined();
   });
 
+  it('threads updateAddressConfig through to EditContact, appending a new address', async () => {
+    const store = freshStore();
+    // The contact already has one address; the uploaded one is new -> EditContact gets both.
+    const client = recordingClient({
+      GetContact: () => ({ ContactId: '1', Address: [{ Street: '123 MAIN ST', City: 'HOUSTON', State: 'TX', Zip: '77002', Type: 'Work' }] }),
+    });
+    const spec: BulkRunSpec = {
+      ...UPDATE_SPEC,
+      runId: 'r-address',
+      fields: [],
+      updateAddressConfig: { street1: 'Street', city: 'City', state: 'State', zip: 'Zip', type: 'Work' },
+      presentColumns: ['Contact ID', 'Street', 'City', 'State', 'Zip'],
+      rows: [{ 'Contact ID': '1', Street: '900 Elm Dr', City: 'Austin', State: 'TX', Zip: '78701' }],
+    };
+    const state = await runBulk(spec, deps(store, client));
+
+    const edit = client.calls.find((c) => c.fn === 'EditContact')!;
+    expect(edit.params.Address).toHaveLength(2);
+    expect((edit.params.Address as any[])[0].Street).toBe('123 MAIN ST'); // existing carried verbatim
+    expect((edit.params.Address as any[])[1].Street).toBe('900 Elm Dr'); // new appended at the end
+    expect(state.results[0].status).toBe('updated');
+  });
+
+  it('makes no change when the uploaded address duplicates an existing one', async () => {
+    const store = freshStore();
+    const client = recordingClient({
+      GetContact: () => ({ ContactId: '1', Address: [{ Street: '123 MAIN ST', City: 'HOUSTON', State: 'TX', Zip: '77002', Type: 'Work' }] }),
+    });
+    const spec: BulkRunSpec = {
+      ...UPDATE_SPEC,
+      runId: 'r-address-dup',
+      fields: [],
+      updateAddressConfig: { street1: 'Street', city: 'City', state: 'State', zip: 'Zip', type: 'Work' },
+      presentColumns: ['Contact ID', 'Street', 'City', 'State', 'Zip'],
+      // Same address, differently formatted -> recognized as a duplicate, nothing to write.
+      rows: [{ 'Contact ID': '1', Street: '123 Main Street', City: 'houston', State: 'Texas', Zip: '77002-9999' }],
+    };
+    const state = await runBulk(spec, deps(store, client));
+
+    expect(client.calls.map((c) => c.fn)).toEqual(['GetContact']); // no EditContact
+    expect(state.results[0].status).toBe('no_change');
+  });
+
   it('records a report CSV path and writes the file', async () => {
     const store = freshStore();
     const client = recordingClient();
