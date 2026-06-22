@@ -21,6 +21,17 @@ describe('addressKey — normalization (codifies $primaryaddress:282)', () => {
   it('normalizes ZIP+4 to the 5-digit base', () => {
     expect(addressKey({ Street: '1 A St', Zip: '77002-1234' })).toBe(addressKey({ Street: '1 A St', Zip: '77002' }));
   });
+  it('treats a space-separated or run-together ZIP+4 the same as its 5-digit base', () => {
+    expect(addressKey({ Street: '1 A St', Zip: '77002 1234' })).toBe(addressKey({ Street: '1 A St', Zip: '77002' }));
+    expect(addressKey({ Street: '1 A St', Zip: '770021234' })).toBe(addressKey({ Street: '1 A St', Zip: '77002' }));
+  });
+  it('keeps distinct international postal codes distinct (no 5-char over-truncation)', () => {
+    // Canadian codes share a 5-char prefix but differ in the 6th char — must NOT collapse.
+    expect(addressKey({ Street: '1 A St', Zip: 'K1A 0B1' })).not.toBe(addressKey({ Street: '1 A St', Zip: 'K1A 0B9' }));
+  });
+  it('compares international postal codes case- and space-insensitively', () => {
+    expect(addressKey({ Street: '1 A St', Zip: 'K1A 0B1' })).toBe(addressKey({ Street: '1 A St', Zip: 'k1a0b1' }));
+  });
   it('canonicalizes a full state name to its 2-letter code', () => {
     expect(addressKey({ Street: '1 A St', State: 'Texas' })).toBe(addressKey({ Street: '1 A St', State: 'TX' }));
   });
