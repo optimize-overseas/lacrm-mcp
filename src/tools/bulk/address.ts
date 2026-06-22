@@ -100,11 +100,19 @@ function normalizeState(state: string | undefined): string {
   return STATE_MAP[squashed] ?? squashed;
 }
 
-/** Canonical 5-digit zip: drop a +4 extension, keep the first 5 chars. */
+/**
+ * Canonicalize a postal code for comparison: strip any "-####" extension and inner
+ * whitespace. A purely-numeric base (a US ZIP, or a ZIP+4 written without the dash) is
+ * truncated to its 5-digit core so "77002", "77002-1234", and "770021234" all match.
+ * A non-numeric base (an international postal code) is kept WHOLE and upper-cased, so
+ * two genuinely-different codes (e.g. "K1A 0B1" vs "K1A 0B9") stay distinct rather than
+ * collapsing — honoring the precision bias (never silently suppress a new address).
+ */
 function normalizeZip(zip: string | undefined): string {
   const trimmed = (zip ?? '').trim();
-  const base = trimmed.includes('-') ? trimmed.slice(0, trimmed.indexOf('-')) : trimmed;
-  return base.replace(/\s+/g, '').slice(0, 5);
+  const withoutExtension = trimmed.includes('-') ? trimmed.slice(0, trimmed.indexOf('-')) : trimmed;
+  const base = withoutExtension.replace(/\s+/g, '');
+  return /^\d+$/.test(base) ? base.slice(0, 5) : base.toUpperCase();
 }
 
 /** The content-equality key for an address (Street/City/State/Zip; Type & Country excluded). */
