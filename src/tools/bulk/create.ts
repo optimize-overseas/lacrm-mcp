@@ -10,7 +10,7 @@
  * @module tools/bulk/create
  */
 
-import type { AddressColumnMapping } from './address.js';
+import { buildAddressFromRow, cell, type AddressColumnMapping } from './address.js';
 
 /** @deprecated Use {@link AddressColumnMapping}. Retained as an alias for back-compat. */
 export type CreateAddressMapping = AddressColumnMapping;
@@ -31,11 +31,6 @@ export interface CreateConfig {
   customFields?: { column: string; field?: string }[];
 }
 
-function cell(row: Record<string, string>, column: string | undefined): string {
-  if (!column) return '';
-  return (row[column] ?? '').trim();
-}
-
 export function buildCreateParams(config: CreateConfig, row: Record<string, string>): Record<string, unknown> {
   const params: Record<string, unknown> = {
     [config.nameField ?? 'Name']: cell(row, config.nameColumn),
@@ -54,17 +49,11 @@ export function buildCreateParams(config: CreateConfig, row: Record<string, stri
   }
 
   if (config.address) {
-    const line1 = cell(row, config.address.street1);
-    const line2 = cell(row, config.address.street2);
-    const street = line1 && line2 ? `${line1}\n${line2}` : line1 || line2;
-    const city = cell(row, config.address.city);
-    const state = cell(row, config.address.state);
-    const zip = cell(row, config.address.zip);
-    const country = cell(row, config.address.country);
-    if (street || city || state || zip || country) {
-      params.Address = [
-        { Street: street, City: city, State: state, Zip: zip, Country: country, Type: config.address.type ?? 'Work' },
-      ];
+    const addr = buildAddressFromRow(config.address, row);
+    // Create mode emits the address only when some part is set (Country counts here);
+    // a new contact has nothing to preserve, so an all-blank address is simply skipped.
+    if (addr.Street || addr.City || addr.State || addr.Zip || addr.Country) {
+      params.Address = [addr];
     }
   }
 
