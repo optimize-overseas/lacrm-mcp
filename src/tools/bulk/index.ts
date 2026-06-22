@@ -29,7 +29,7 @@ import { parseCsv } from './csv.js';
 import { validateBulkCsv } from './validate.js';
 import { generateTemplate } from './template.js';
 import { RunStore, defaultRunsDir, type BulkRunSpec, type BulkRunState } from './runstore.js';
-import { addressColumnList } from './address.js';
+import { addressColumnList, type AddressColumnMapping } from './address.js';
 import type { FieldSpec } from './types.js';
 
 const STRATEGY = z.enum(['replace', 'preserve_if_blank', 'union_semicolon', 'never_write']);
@@ -46,6 +46,17 @@ const fieldSpec = z.object({
   description: z.string().optional().describe('Human description shown in the template report.'),
 });
 
+// CSV-column -> address mapping (shared by create and update); see AddressColumnMapping.
+const addressMapping = z.object({
+  street1: z.string(),
+  street2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+  country: z.string().optional(),
+  type: z.string().optional(),
+});
+
 const createConfig = z.object({
   nameColumn: z.string().describe('CSV column holding the contact name.'),
   nameField: z.string().optional().describe('LACRM name field key (default "Name").'),
@@ -53,31 +64,13 @@ const createConfig = z.object({
   isCompany: z.boolean().optional().describe('Create companies instead of people (default false).'),
   phone: z.object({ column: z.string(), type: z.string().optional() }).optional(),
   email: z.object({ column: z.string(), type: z.string().optional() }).optional(),
-  address: z
-    .object({
-      street1: z.string(),
-      street2: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
-      zip: z.string().optional(),
-      country: z.string().optional(),
-      type: z.string().optional(),
-    })
-    .optional(),
+  address: addressMapping.optional(),
   customFields: z.array(z.object({ column: z.string(), field: z.string().optional() })).optional(),
 });
 
-const updateAddressConfig = z
-  .object({
-    street1: z.string(),
-    street2: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    zip: z.string().optional(),
-    country: z.string().optional(),
-    type: z.string().optional(),
-  })
-  .describe('Update-mode address mapping: an uploaded address is appended to the contact only if it is not already present (CRM copy wins on a duplicate; existing addresses untouched).');
+const updateAddressConfig = addressMapping.describe(
+  'Update-mode address mapping: an uploaded address is appended to the contact only if it is not already present (CRM copy wins on a duplicate; existing addresses untouched).',
+);
 
 function ok(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -91,6 +84,11 @@ function loadCsvText(args: { csv_content?: string; csv_path?: string }): string 
   if (args.csv_content && args.csv_content.trim() !== '') return args.csv_content;
   if (args.csv_path) return readFileSync(args.csv_path, 'utf-8');
   throw new Error('Provide either csv_content or csv_path.');
+}
+
+/** The CSV column names of an optional address mapping (undefined when no mapping was supplied). */
+function addressColumnsOf(config?: AddressColumnMapping): string[] | undefined {
+  return config ? addressColumnList(config) : undefined;
 }
 
 function workerScriptPath(): string {
@@ -129,7 +127,7 @@ Returns: { csv, columns, report } where report[].behavior explains each field's 
           keyColumn: args.key_column,
           keyDescription: args.key_description,
           includeExampleRow: args.include_example_row,
-          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
+          addressColumns: addressColumnsOf(args.address_config),
         });
         return ok(result);
       } catch (error) {
@@ -168,7 +166,7 @@ Provide the CSV as csv_content (inline) or csv_path (a readable file path).`,
           fields: args.fields as FieldSpec[],
           operation: args.operation,
           keyColumn: args.key_column,
-          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
+          addressColumns: addressColumnsOf(args.address_config),
         });
         const callsPerRow = args.operation === 'update' ? 2 : 1;
         const intervalMs = args.interval_ms ?? 1000;
@@ -216,7 +214,7 @@ Provide the CSV as csv_content or csv_path.`,
           fields: (args.fields ?? []) as FieldSpec[],
           operation: args.operation,
           keyColumn: args.key_column,
-          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
+          addressColumns: addressColumnsOf(args.address_config),
         });
         if (!validation.ok) {
           return ok({ launched: false, reason: 'validation_failed', validation });
