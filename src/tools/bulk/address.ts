@@ -1,16 +1,16 @@
 /**
  * Address normalization, equality, and append-if-absent merge for bulk UPDATE.
  *
- * Codifies the ONLY live address-equality rule in the codebase — the `$primaryaddress`
- * skill's "compare Street/City/State/Zip, case-insensitive, 'St'≈'Street'" rule — as
- * deterministic, testable code. Tuned for PRECISION (when in doubt, treat as new and
- * ADD), so it never silently suppresses a legitimately-new address.
+ * Two addresses are considered the same when their Street/City/State/Zip match after
+ * case-, whitespace-, and punctuation-insensitive normalization (e.g. "St" ≈ "Street",
+ * "N" ≈ "North", a full state name ≈ its 2-letter code). The matcher is deliberately
+ * tuned for PRECISION — when in doubt it treats the address as NEW and appends it, so it
+ * never silently suppresses a legitimately-new address.
  *
- * Deliberately NOT the ram-jobs/genref owner-identity matcher: that is a high-recall
- * PERSON matcher that ignores city/state/zip and DROPS street-type tokens (so
- * "100 Main St" == "100 Main Ave"). For within-contact ADDRESS equality that over-merges.
- * Here we MAP suffixes/directionals to a canonical form and KEEP them (and the house
- * number + zip) as distinguishers.
+ * It MAPS street suffixes / directionals to a canonical form and KEEPS them — along with
+ * the house number and zip — as distinguishers (so "100 Main St" ≠ "100 Main Ave" and
+ * "100 Main" ≠ "200 Main"). It is intentionally NOT a loose person/owner matcher that
+ * would drop those tokens and over-merge distinct addresses.
  *
  * Generic and instance-agnostic — no specific CRM's fields, defaults, or use cases.
  *
