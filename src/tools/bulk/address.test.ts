@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { addressKey, isBlankAddress, buildAddressFromRow, mergeAddressIfAbsent, addressColumnList } from './address.js';
 
-describe('addressKey — normalization (codifies $primaryaddress:282)', () => {
+describe('addressKey — normalization (case/format-insensitive on Street/City/State/Zip)', () => {
   it('is case-insensitive and whitespace/punctuation-insensitive', () => {
     expect(addressKey({ Street: '123 Main St.', City: 'Houston', State: 'TX', Zip: '77002' }))
       .toBe(addressKey({ Street: '123  main   st', City: 'HOUSTON', State: 'tx', Zip: '77002' }));
