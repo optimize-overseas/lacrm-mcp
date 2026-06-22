@@ -89,6 +89,24 @@ describe('registerBulkTools', () => {
     expect(json.reason).toBe('confirmation_required');
   });
 
+  it('bulk_execute create-mode preview recognizes create_config.address columns (no false "unknown" warning)', async () => {
+    const tools = captureTools();
+    const { json } = await callJson(tools.bulk_execute, {
+      operation: 'create',
+      fields: [{ column: 'Full Name', field: 'FullName', strategy: 'replace', required: true }],
+      create_config: { nameColumn: 'Full Name', address: { street1: 'Addr1', city: 'City' } },
+      csv_content: 'Full Name,Addr1,City\nJane,123 Main,Dallas\n',
+      // no confirm -> returns the validation preview without launching a worker
+    });
+    expect(json.launched).toBe(false);
+    expect(json.reason).toBe('confirmation_required');
+    // The create address columns are consumed at execute time, so the preview must NOT
+    // flag them as unknown / to-be-ignored.
+    expect(json.validation.unknownColumns).toEqual([]);
+    expect(json.validation.presentColumns).toEqual(expect.arrayContaining(['Addr1', 'City']));
+    expect(json.validation.warnings).toEqual([]);
+  });
+
   it('bulk_execute refuses when validation fails', async () => {
     const tools = captureTools();
     const { json } = await callJson(tools.bulk_execute, {
