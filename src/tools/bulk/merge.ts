@@ -94,7 +94,7 @@ export function computeUpdateParams(input: ComputeUpdateParamsInput): Record<str
   // the file's version discarded. EditContact replaces the whole Address array, so we
   // emit the COMPLETE merged array (existing entries carried verbatim, new one appended).
   if (input.addressConfig) {
-    const existingRaw = (input.existing as Record<string, unknown>).Address;
+    const existingRaw = input.existing.Address;
     const existingAddresses = (Array.isArray(existingRaw) ? existingRaw : []) as AddressObject[];
     const candidate = buildAddressFromRow(input.addressConfig, input.row);
     const merged = mergeAddressIfAbsent(existingAddresses, candidate);
