@@ -29,6 +29,7 @@ import { parseCsv } from './csv.js';
 import { validateBulkCsv } from './validate.js';
 import { generateTemplate } from './template.js';
 import { RunStore, defaultRunsDir, type BulkRunSpec, type BulkRunState } from './runstore.js';
+import { addressColumnList } from './address.js';
 import type { FieldSpec } from './types.js';
 
 const STRATEGY = z.enum(['replace', 'preserve_if_blank', 'union_semicolon', 'never_write']);
@@ -65,6 +66,18 @@ const createConfig = z.object({
     .optional(),
   customFields: z.array(z.object({ column: z.string(), field: z.string().optional() })).optional(),
 });
+
+const updateAddressConfig = z
+  .object({
+    street1: z.string(),
+    street2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip: z.string().optional(),
+    country: z.string().optional(),
+    type: z.string().optional(),
+  })
+  .describe('Update-mode address mapping: an uploaded address is appended to the contact only if it is not already present (CRM copy wins on a duplicate; existing addresses untouched).');
 
 function ok(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -105,6 +118,7 @@ Returns: { csv, columns, report } where report[].behavior explains each field's 
         key_column: z.string().optional().describe('Identity column for update mode (placed first, required).'),
         key_description: z.string().optional().describe('Optional description for the key column.'),
         include_example_row: z.boolean().optional().describe('Append one example row built from field examples.'),
+        address_config: updateAddressConfig.optional(),
       },
     },
     async (args) => {
@@ -115,6 +129,7 @@ Returns: { csv, columns, report } where report[].behavior explains each field's 
           keyColumn: args.key_column,
           keyDescription: args.key_description,
           includeExampleRow: args.include_example_row,
+          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
         });
         return ok(result);
       } catch (error) {
@@ -141,6 +156,7 @@ Provide the CSV as csv_content (inline) or csv_path (a readable file path).`,
         csv_path: z.string().optional().describe('Path to a CSV file (alternative to csv_content).'),
         fields: z.array(fieldSpec).describe('Field configuration.'),
         key_column: z.string().optional().describe('Identity column for update mode.'),
+        address_config: updateAddressConfig.optional(),
         interval_ms: z.number().optional().describe('Per-call pacing for the estimate (default 1000).'),
       },
     },
@@ -152,6 +168,7 @@ Provide the CSV as csv_content (inline) or csv_path (a readable file path).`,
           fields: args.fields as FieldSpec[],
           operation: args.operation,
           keyColumn: args.key_column,
+          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
         });
         const callsPerRow = args.operation === 'update' ? 2 : 1;
         const intervalMs = args.interval_ms ?? 1000;
@@ -186,6 +203,7 @@ Provide the CSV as csv_content or csv_path.`,
         key_column: z.string().optional().describe('Identity column (required for update mode).'),
         create_config: createConfig.optional().describe('Create-mode field mapping (required for create mode).'),
         create_if_missing: z.boolean().optional().describe('Update mode: create a contact when the key is not found.'),
+        address_config: updateAddressConfig.optional().describe('Update-mode address mapping (append-if-absent).'),
         interval_ms: z.number().optional().describe('Min ms between calls (default 1000; do not go below 1000).'),
         confirm: z.boolean().optional().describe('Must be true to perform live writes.'),
       },
@@ -198,6 +216,7 @@ Provide the CSV as csv_content or csv_path.`,
           fields: (args.fields ?? []) as FieldSpec[],
           operation: args.operation,
           keyColumn: args.key_column,
+          addressColumns: args.address_config ? addressColumnList(args.address_config) : undefined,
         });
         if (!validation.ok) {
           return ok({ launched: false, reason: 'validation_failed', validation });
@@ -223,6 +242,7 @@ Provide the CSV as csv_content or csv_path.`,
           createIfMissing: args.create_if_missing,
           intervalMs,
           fields: args.fields as FieldSpec[] | undefined,
+          updateAddressConfig: args.address_config,
           createConfig: args.create_config,
           presentColumns: parsed.headers,
           rows: parsed.rows,
