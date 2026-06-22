@@ -276,6 +276,8 @@ Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second 
 | `bulk_execute` | Launch a detached, throttled worker; returns a `run_id` immediately (requires `confirm: true`) |
 | `bulk_run_status` | Progress, per-row errors, and the path to the final report CSV |
 
+**Template column order:** generated templates list LACRM built-in fields first — the key column, then the owner name, then the address block, then any other standard fields (Email, Phone, etc.) — and custom fields last. Columns read left-to-right as identity → standard → custom, regardless of the order fields are supplied in.
+
 ### Update merge model (column-presence)
 
 Bulk updates are **read-merge-write per contact**, so a partial CSV never clobbers fields it does not mention. A column **absent** from the CSV is always left unchanged. When a column **is present**, its `strategy` decides what happens:
