@@ -117,7 +117,8 @@ export function isBlankAddress(addr: AddressObject): boolean {
   return !(`${addr.Street ?? ''}`.trim() || `${addr.City ?? ''}`.trim() || `${addr.State ?? ''}`.trim() || `${addr.Zip ?? ''}`.trim());
 }
 
-function cell(row: Record<string, string>, column: string | undefined): string {
+/** Read and trim one CSV cell by column name; an undefined column yields ''. */
+export function cell(row: Record<string, string>, column: string | undefined): string {
   if (!column) return '';
   return (row[column] ?? '').trim();
 }
