@@ -76,6 +76,18 @@ describe('validateBulkCsv — update mode', () => {
     expect(result.duplicateKeys).toEqual([{ key: '7', count: 2 }]);
     expect(result.warnings.join(' ')).toMatch(/duplicate/i);
   });
+
+  it('recognizes address columns as present (not unknown)', () => {
+    const result = validateBulkCsv({
+      operation: 'update',
+      keyColumn: 'Contact ID',
+      fields: [],
+      parsed: { headers: ['Contact ID', 'Address Line 1', 'City', 'State', 'Zip'], rows: [] },
+      addressColumns: ['Address Line 1', 'City', 'State', 'Zip'],
+    });
+    expect(result.unknownColumns).toEqual([]);
+    expect(result.presentColumns).toEqual(expect.arrayContaining(['Address Line 1', 'City', 'State', 'Zip']));
+  });
 });
 
 describe('validateBulkCsv — create mode', () => {

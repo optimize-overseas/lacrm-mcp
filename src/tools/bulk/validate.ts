@@ -45,10 +45,13 @@ export interface ValidateInput {
   operation: 'create' | 'update';
   /** Identity column for update mode (e.g. "Contact ID"); required present + per-row. */
   keyColumn?: string;
+  /** Update-mode structured-address column names; recognized (not "unknown"), never required. */
+  addressColumns?: string[];
 }
 
 export function validateBulkCsv(input: ValidateInput): ValidationResult {
   const { parsed, fields, operation, keyColumn } = input;
+  const addressColumns = input.addressColumns ?? [];
   const headerSet = new Set(parsed.headers);
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -56,9 +59,10 @@ export function validateBulkCsv(input: ValidateInput): ValidationResult {
   const fieldColumns = fields.map((f) => f.column);
   const configuredColumns = new Set<string>(fieldColumns);
   if (operation === 'update' && keyColumn) configuredColumns.add(keyColumn);
+  for (const c of addressColumns) configuredColumns.add(c);
 
-  // presentColumns = field columns acted on (the key is identity, reported via required checks, not here).
-  const presentColumns = fieldColumns.filter((c) => headerSet.has(c));
+  // presentColumns = field + address columns acted on (the key is identity, reported via required checks, not here).
+  const presentColumns = [...fieldColumns, ...addressColumns].filter((c) => headerSet.has(c));
   const preservedColumns = operation === 'update' ? fieldColumns.filter((c) => !headerSet.has(c)) : [];
   const unknownColumns = parsed.headers.filter((h) => !configuredColumns.has(h));
 
