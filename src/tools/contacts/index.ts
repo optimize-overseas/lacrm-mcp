@@ -79,6 +79,7 @@ Returns the new ContactId on success.`,
         company_name: z.string().optional().describe('Company name (for contacts). Creates company if not exists.'),
         job_title: z.string().optional().describe('Job title/position'),
         address: z.array(addressSchema).optional().describe('Physical addresses'),
+        addresses: z.array(addressSchema).optional().describe('Alias for "address" (accepted for compatibility).'),
         website: z.array(websiteSchema).optional().describe('Website URLs'),
         background_info: z.string().optional().describe('Additional notes/background'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format. Use 0000-mm-dd for annual dates.'),
@@ -108,6 +109,9 @@ Returns the new ContactId on success.`,
         const emails = args.email_address ? [{ Text: args.email_address, Type: 'Work' }] : args.email;
         const phones = args.phone_number ? [{ Text: args.phone_number, Type: 'Work' }] : args.phone;
         const websites = args.website_url ? [{ Text: args.website_url }] : args.website;
+        // Accept "addresses" (plural) as an alias for "address" — some callers/skills use the
+        // plural form, which Zod would otherwise silently strip, dropping the address write.
+        const addressList = args.address ?? args.addresses;
 
         const params: Record<string, unknown> = {
           AssignedTo: args.assigned_to,
@@ -125,7 +129,7 @@ Returns the new ContactId on success.`,
         if (phones) params.Phone = phones;
         if (!args.is_company && args.company_name) params['Company Name'] = args.company_name;
         if (args.job_title) params['Job Title'] = args.job_title;
-        if (args.address) params.Address = args.address;
+        if (addressList) params.Address = addressList;
         if (websites) params.Website = websites;
         if (args.background_info) params['Background Info'] = args.background_info;
         if (args.birthday) params.Birthday = args.birthday;
@@ -182,6 +186,7 @@ Supports custom_field_names for name-based custom field resolution.`,
         company_name: z.string().optional().describe('Company name'),
         job_title: z.string().optional().describe('Job title'),
         address: z.array(addressSchema).optional().describe('Addresses (replaces all existing)'),
+        addresses: z.array(addressSchema).optional().describe('Alias for "address" (replaces all existing).'),
         website: z.array(websiteSchema).optional().describe('Website URLs'),
         background_info: z.string().optional().describe('Additional notes'),
         birthday: z.string().optional().describe('Birthday in yyyy-mm-dd format'),
@@ -211,6 +216,9 @@ Supports custom_field_names for name-based custom field resolution.`,
         const emails = args.email_address ? [{ Text: args.email_address, Type: 'Work' }] : args.email;
         const phones = args.phone_number ? [{ Text: args.phone_number, Type: 'Work' }] : args.phone;
         const websites = args.website_url ? [{ Text: args.website_url }] : args.website;
+        // Accept "addresses" (plural) as an alias for "address" — some callers/skills use the
+        // plural form, which Zod would otherwise silently strip, dropping the address write.
+        const addressList = args.address ?? args.addresses;
 
         const params: Record<string, unknown> = {
           ContactId: args.contact_id
@@ -223,7 +231,7 @@ Supports custom_field_names for name-based custom field resolution.`,
         if (phones !== undefined) params.Phone = phones;
         if (args.company_name !== undefined) params['Company Name'] = args.company_name;
         if (args.job_title !== undefined) params['Job Title'] = args.job_title;
-        if (args.address !== undefined) params.Address = args.address;
+        if (addressList !== undefined) params.Address = addressList;
         if (websites !== undefined) params.Website = websites;
         if (args.background_info !== undefined) params['Background Info'] = args.background_info;
         if (args.birthday !== undefined) params.Birthday = args.birthday;
