@@ -10,7 +10,8 @@
  * @module tools/bulk/create
  */
 
-import { buildAddressFromRow, cell, type AddressColumnMapping } from './address.js';
+import { buildAddressFromRow, type AddressColumnMapping } from './address.js';
+import { cell } from './csv.js';
 
 /** @deprecated Use {@link AddressColumnMapping}. Retained as an alias for back-compat. */
 export type CreateAddressMapping = AddressColumnMapping;
