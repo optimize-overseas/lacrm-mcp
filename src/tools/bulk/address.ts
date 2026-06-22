@@ -17,6 +17,8 @@
  * @module tools/bulk/address
  */
 
+import { cell } from './csv.js';
+
 /** A LACRM address object. Extra keys (e.g. TypeId) on existing addresses are preserved. */
 export interface AddressObject {
   Street?: string;
@@ -123,12 +125,6 @@ export function addressKey(addr: AddressObject): string {
 /** An address is blank when Street, City, State, and Zip are all empty. */
 export function isBlankAddress(addr: AddressObject): boolean {
   return !(`${addr.Street ?? ''}`.trim() || `${addr.City ?? ''}`.trim() || `${addr.State ?? ''}`.trim() || `${addr.Zip ?? ''}`.trim());
-}
-
-/** Read and trim one CSV cell by column name; an undefined column yields ''. */
-export function cell(row: Record<string, string>, column: string | undefined): string {
-  if (!column) return '';
-  return (row[column] ?? '').trim();
 }
 
 /** Build a clean AddressObject from one CSV row using the column mapping. */

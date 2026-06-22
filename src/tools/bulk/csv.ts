@@ -39,6 +39,12 @@ export function parseCsv(text: string): ParsedCsv {
   return { headers, rows };
 }
 
+/** Read and trim one CSV cell by column name; an undefined column yields ''. */
+export function cell(row: Record<string, string>, column: string | undefined): string {
+  if (!column) return '';
+  return (row[column] ?? '').trim();
+}
+
 /** Escape one CSV field per RFC-4180: quote if it contains a comma, quote, CR or LF. */
 export function csvField(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
