@@ -10,18 +10,10 @@
  * @module tools/bulk/create
  */
 
-export interface CreateAddressMapping {
-  /** CSV column for the first street line. */
-  street1: string;
-  /** CSV column for a second street line; appended after a newline when present. */
-  street2?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  country?: string;
-  /** Address category. Default 'Work'. */
-  type?: string;
-}
+import type { AddressColumnMapping } from './address.js';
+
+/** @deprecated Use {@link AddressColumnMapping}. Retained as an alias for back-compat. */
+export type CreateAddressMapping = AddressColumnMapping;
 
 export interface CreateConfig {
   /** CSV column holding the contact's name. */
@@ -34,7 +26,7 @@ export interface CreateConfig {
   isCompany?: boolean;
   phone?: { column: string; type?: string };
   email?: { column: string; type?: string };
-  address?: CreateAddressMapping;
+  address?: AddressColumnMapping;
   /** Scalar custom/standard fields set directly; blank cells are skipped. */
   customFields?: { column: string; field?: string }[];
 }
