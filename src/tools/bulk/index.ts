@@ -209,12 +209,17 @@ Provide the CSV as csv_content or csv_path.`,
     async (args) => {
       try {
         const parsed = parseCsv(loadCsvText(args));
+        // Recognize whichever address mapping applies to this operation so the preview
+        // doesn't falsely flag address columns as "unknown": update uses address_config;
+        // create's mapping lives on create_config.address (and IS consumed at execute time).
+        const addressMappingForValidation =
+          args.operation === 'create' ? args.create_config?.address : args.address_config;
         const validation = validateBulkCsv({
           parsed,
           fields: (args.fields ?? []) as FieldSpec[],
           operation: args.operation,
           keyColumn: args.key_column,
-          addressColumns: addressColumnsOf(args.address_config),
+          addressColumns: addressColumnsOf(addressMappingForValidation),
         });
         if (!validation.ok) {
           return ok({ launched: false, reason: 'validation_failed', validation });
