@@ -289,6 +289,10 @@ Bulk updates are **read-merge-write per contact**, so a partial CSV never clobbe
 
 Use `replace` for fields that should mirror the CSV exactly (a blank cell means "clear it"); `preserve_if_blank` for fill-only fields; `union_semicolon` for accumulate-style list fields; `never_write` to lock a field against this operation.
 
+### Update address columns (append-if-absent, v1.5.0)
+
+Update mode can also carry a **structured address** via `address_config` (same shape as create's `address`: `street1`, optional `street2`/`city`/`state`/`zip`/`country`, and a literal `type` defaulting to `Work`). Its mapped CSV columns are added to the generated template and recognized by validation. For each row the uploaded address is **appended to the contact only if it is not already on the record** — compared case- and format-insensitively on Street/City/State/Zip, with street-suffix and directional abbreviations canonicalized (`St`↔`Street`, `N`↔`North`), ZIP+4 reduced to its 5-digit base, and a full state name matched to its 2-letter code. On a match the **existing CRM address is kept and the file's value is ignored**; existing addresses are never modified, reordered, or removed — the new one is appended at the end (the primary/mailing address at position 0 is untouched). Because LACRM's `EditContact` replaces the entire address array, the worker reads the contact's existing addresses and writes back the complete merged array. One address per row.
+
 ### Throttle & detached execution
 
 `bulk_execute` spawns a separate worker process that calls LACRM strictly sequentially at >=1s spacing, so a multi-thousand-row run (which can take hours) proceeds independently of the request that started it and survives MCP/host restarts. Run state is persisted to disk — directory configurable via `LACRM_BULK_RUNS_DIR` (default: a `lacrm-bulk-runs` folder under the OS temp dir). A crashed run resumes from where it left off if re-launched against the same run's spec.
