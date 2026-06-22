@@ -25,6 +25,8 @@ export interface GenerateTemplateInput {
   keyDescription?: string;
   /** When true, append a single example row built from each field's `example`. */
   includeExampleRow?: boolean;
+  /** Update-mode structured-address column names; appended after fields with append-if-absent behavior. */
+  addressColumns?: string[];
 }
 
 export interface FieldReportEntry {
@@ -65,12 +67,13 @@ function createBehavior(strategy: MergeStrategy, required: boolean): string {
 }
 
 export function generateTemplate(input: GenerateTemplateInput): GeneratedTemplate {
-  const { operation, fields, keyColumn, keyDescription, includeExampleRow } = input;
+  const { operation, fields, keyColumn, keyDescription, includeExampleRow, addressColumns } = input;
 
   const fillableFields = fields.filter((f) => f.strategy !== 'never_write');
   const columns: string[] = [];
   if (operation === 'update' && keyColumn) columns.push(keyColumn);
   for (const f of fillableFields) columns.push(f.column);
+  for (const col of addressColumns ?? []) columns.push(col);
 
   // Build the report: key first (update), then every configured field (incl. never_write).
   const report: FieldReportEntry[] = [];
@@ -94,6 +97,13 @@ export function generateTemplate(input: GenerateTemplateInput): GeneratedTemplat
           : createBehavior(f.strategy, Boolean(f.required)),
       description: f.description,
     });
+  }
+  const ADDRESS_BEHAVIOR =
+    'New address. Appended to the contact only if it is not already on the record ' +
+    '(case/format-insensitive on Street/City/State/Zip; "St" = "Street"). If it matches an existing ' +
+    'address, the CRM copy is kept and these cells are ignored. Existing addresses are never modified or removed.';
+  for (const col of addressColumns ?? []) {
+    report.push({ column: col, required: false, strategy: 'preserve_if_blank', behavior: ADDRESS_BEHAVIOR });
   }
 
   const lines: string[] = [columns.map(csvField).join(',')];

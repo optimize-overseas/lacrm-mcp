@@ -79,6 +79,7 @@ async function processRow(
       presentColumns: spec.presentColumns,
       row,
       existing: existing ?? {},
+      addressConfig: spec.updateAddressConfig,
     });
     if (Object.keys(params).length === 0) {
       return { rowNumber, key, contactId: key, status: 'no_change' };

@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { FieldSpec } from './types.js';
 import type { CreateConfig } from './create.js';
+import type { AddressColumnMapping } from './address.js';
 
 /** The immutable spec for a run: everything the worker needs to execute it. */
 export interface BulkRunSpec {
@@ -29,6 +30,8 @@ export interface BulkRunSpec {
   intervalMs?: number;
   /** Update-mode merge fields. */
   fields?: FieldSpec[];
+  /** Update-mode structured-address mapping (append-if-absent). */
+  updateAddressConfig?: AddressColumnMapping;
   /** Create-mode field mapping. */
   createConfig?: CreateConfig;
   /** Columns present in the uploaded CSV header. */

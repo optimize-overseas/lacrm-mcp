@@ -62,6 +62,14 @@ describe('generateTemplate — update mode', () => {
     // "active, verified" is quoted (contains a comma); the semicolon list is not (semicolons need no quoting).
     expect(lines[1]).toBe(',"active, verified",vip; lead,');
   });
+
+  it('appends address columns after fields with append-if-absent behavior', () => {
+    const t = generateTemplate({ operation: 'update', keyColumn: 'Contact ID', fields: UPDATE_FIELDS, addressColumns: ['Address Line 1', 'City', 'State', 'Zip'] });
+    expect(t.columns).toEqual(['Contact ID', 'Status', 'Tags', 'Legacy ID', 'Address Line 1', 'City', 'State', 'Zip']);
+    const city = t.report.find((r) => r.column === 'City')!;
+    expect(city.behavior.toLowerCase()).toContain('appended');
+    expect(city.behavior.toLowerCase()).toContain('not already on the record');
+  });
 });
 
 describe('generateTemplate — CSV escaping', () => {
