@@ -157,3 +157,43 @@ describe('computeUpdateParams — field mapping and composition', () => {
     });
   });
 });
+
+describe('computeUpdateParams — address append-if-absent', () => {
+  const addressConfig = { street1: 'Street', city: 'City', state: 'State', zip: 'Zip', type: 'Work' };
+  const existing = { Address: [{ Street: '123 MAIN ST', City: 'HOUSTON', State: 'TX', Zip: '77002', Type: 'Work' }] };
+
+  it('appends a new address as the full merged array', () => {
+    const params = computeUpdateParams({
+      fields: [], presentColumns: ['Street', 'City', 'State', 'Zip'],
+      row: { Street: '900 Elm Dr', City: 'Austin', State: 'TX', Zip: '78701' },
+      existing, addressConfig,
+    });
+    expect((params.Address as any[])).toHaveLength(2);
+    expect((params.Address as any[])[1].Street).toBe('900 Elm Dr');
+  });
+
+  it('omits Address entirely when the uploaded address duplicates an existing one', () => {
+    const params = computeUpdateParams({
+      fields: [], presentColumns: ['Street', 'City', 'State', 'Zip'],
+      row: { Street: '123 Main Street', City: 'houston', State: 'Texas', Zip: '77002-1' },
+      existing, addressConfig,
+    });
+    expect(params.Address).toBeUndefined();
+  });
+
+  it('omits Address when no address config is supplied', () => {
+    const params = computeUpdateParams({ fields: [], presentColumns: ['Street'], row: { Street: 'x' }, existing });
+    expect(params.Address).toBeUndefined();
+  });
+
+  it('composes a flat-field update AND an address append in one row', () => {
+    const params = computeUpdateParams({
+      fields: [{ column: '$ Offer', strategy: 'preserve_if_blank' }],
+      presentColumns: ['$ Offer', 'Street', 'City', 'State', 'Zip'],
+      row: { '$ Offer': '5000', Street: '900 Elm Dr', City: 'Austin', State: 'TX', Zip: '78701' },
+      existing, addressConfig,
+    });
+    expect(params['$ Offer']).toBe('5000');
+    expect((params.Address as any[])).toHaveLength(2);
+  });
+});
