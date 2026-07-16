@@ -84,6 +84,7 @@ npm install -g lacrm-mcp@latest
 ## Important Notes
 
 - All logging goes to stderr (stdout is the MCP JSON-RPC stream)
+- **Debug param logging (secret/PII hygiene, 2026-07-16):** the `[DEBUG] API call` line is `DEBUG`-gated *and* logs only the parameter **keys** by default — LACRM params routinely carry PII (names, addresses, notes). To log full param **values** for deep debugging, set `LACRM_DEBUG_PARAMS` (e.g. `LACRM_DEBUG_PARAMS=1`); even then, token-shaped values are masked via `src/utils/redact.ts` (`debugParams`/`debugFileMeta`). The API key is sent in the `Authorization` header, never in params, so it is not at risk in these logs.
 - ID parameters are automatically sanitized to strip accidental quote characters
 - Name resolution parameters (v1.3.0) are always mutually exclusive with their ID-based counterparts -- providing both will error
 - `count_only` mode (v1.3.0) makes additional API calls to paginate all pages; the 100-page safety cap prevents runaway usage. v1.3.1 fixed a bug where pagination would stop after page 1 if the API returned a plain array instead of `{Results, HasMoreResults}`

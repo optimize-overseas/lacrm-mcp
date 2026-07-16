@@ -53,6 +53,28 @@ Alternatively, create a config file at `~/.lacrm-config.json`:
 }
 ```
 
+### Debug logging (optional)
+
+Set `DEBUG` to emit `[DEBUG]` diagnostics to stderr. For privacy, the per-call
+debug line logs only the **names** of the parameters, never their values (CRM
+parameters routinely contain PII such as contact names, addresses, and notes):
+
+```bash
+DEBUG=1 lacrm-mcp
+```
+
+To also log full parameter **values** for deep debugging, additionally set
+`LACRM_DEBUG_PARAMS=1`. Even then, values that look like credentials (API keys,
+tokens, bearer/authorization headers, private keys) are masked before logging.
+Leave this unset in normal operation.
+
+```bash
+DEBUG=1 LACRM_DEBUG_PARAMS=1 lacrm-mcp
+```
+
+The API key itself is sent in the `Authorization` header and is never included
+in the logged parameters.
+
 ## Claude Desktop Configuration
 
 Add to your Claude Desktop configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
