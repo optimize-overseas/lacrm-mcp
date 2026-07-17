@@ -17,6 +17,7 @@
 
 import { ApiError, AuthenticationError } from './utils/errors.js';
 import { logger } from './utils/logger.js';
+import { debugParams, debugFileMeta } from './utils/redact.js';
 
 // ============================================================================
 // Rate Limiter Implementation
@@ -182,7 +183,10 @@ export class LacrmClient {
       Parameters: this.sanitizeIdParameters(parameters)
     };
 
-    logger.debug(`API call: ${functionName}`, { parameters });
+    // Params routinely carry PII (names, addresses, notes). Even at debug
+    // verbosity we log only the parameter KEYS by default; full values (secrets
+    // masked) require the explicit LACRM_DEBUG_PARAMS opt-in. See utils/redact.
+    logger.debug(`API call: ${functionName}`, debugParams(parameters));
 
     const response = await fetch(API_BASE_URL, {
       method: 'POST',
@@ -280,7 +284,8 @@ export class LacrmClient {
     const blob = new Blob([arrayBuffer], { type: file.mimeType });
     formData.append('File', blob, file.name);
 
-    logger.debug(`API call with file: ${functionName}`, { fileName: file.name });
+    // A filename can be PII; log size/mime by default, name only under opt-in.
+    logger.debug(`API call with file: ${functionName}`, debugFileMeta(file));
 
     const response = await fetch(API_BASE_URL, {
       method: 'POST',
