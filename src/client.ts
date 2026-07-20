@@ -15,9 +15,20 @@
  * @module client
  */
 
-import { ApiError, AuthenticationError } from './utils/errors.js';
+import { ApiError, AuthenticationError, TransientHttpError } from './utils/errors.js';
 import { logger } from './utils/logger.js';
 import { debugParams, debugFileMeta } from './utils/redact.js';
+import {
+  retry,
+  getRetryConfig,
+  isIdempotent,
+  isNetworkError,
+  parseRetryAfterMs,
+  RETRYABLE_STATUS,
+} from './utils/retry.js';
+
+/** Per-attempt HTTP timeout ceiling. Also the historical single-call timeout. */
+const REQUEST_TIMEOUT_MS = 180000;
 
 // ============================================================================
 // Rate Limiter Implementation
@@ -175,9 +186,6 @@ export class LacrmClient {
     functionName: string,
     parameters: Record<string, unknown> = {}
   ): Promise<T> {
-    // Enforce rate limiting before making the request
-    await rateLimiter.waitForSlot();
-
     const body = {
       Function: functionName,
       Parameters: this.sanitizeIdParameters(parameters)
@@ -188,56 +196,85 @@ export class LacrmClient {
     // masked) require the explicit LACRM_DEBUG_PARAMS opt-in. See utils/redact.
     logger.debug(`API call: ${functionName}`, debugParams(parameters));
 
-    const response = await fetch(API_BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': this.apiKey
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(180000)
-    });
+    const cfg = getRetryConfig(process.env);
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new AuthenticationError();
-      }
+    // Transient failures (5xx / gateway timeout / dropped socket) are retried
+    // with jittered backoff for idempotent reads only. Writes never retry, so a
+    // timed-out create can't be double-submitted. The total retry budget stays
+    // under the historical single-call timeout, so no outer timeout changes.
+    return retry<T>(async ({ remainingMs }) => {
+      // Enforce rate limiting before each attempt.
+      await rateLimiter.waitForSlot();
 
-      // Try to read error details from response body
-      let errorData: unknown;
-      try {
-        errorData = await response.json();
-      } catch {
-        // If we can't parse the error body, throw a generic HTTP error
+      const timeoutMs = Math.max(1, Math.min(REQUEST_TIMEOUT_MS, Math.floor(remainingMs)));
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': this.apiKey
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new AuthenticationError();
+        }
+
+        // Transient server / gateway failure -> retryable for idempotent calls.
+        if (RETRYABLE_STATUS.has(response.status)) {
+          const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'), Date.now());
+          throw new TransientHttpError(response.status, response.statusText, retryAfterMs);
+        }
+
+        // Permanent HTTP error: surface the API's ErrorCode if present.
+        let errorData: unknown;
+        try {
+          errorData = await response.json();
+        } catch {
+          throw new ApiError(
+            `HTTP_${response.status}`,
+            `HTTP error: ${response.status} ${response.statusText}`
+          );
+        }
+
+        if (errorData && typeof errorData === 'object' && 'ErrorCode' in errorData) {
+          const apiError = errorData as ApiErrorResponse;
+          logger.error(`API error in ${functionName}`, apiError);
+          throw new ApiError(apiError.ErrorCode, apiError.ErrorDescription);
+        }
+
         throw new ApiError(
           `HTTP_${response.status}`,
           `HTTP error: ${response.status} ${response.statusText}`
         );
       }
 
-      if (errorData && typeof errorData === 'object' && 'ErrorCode' in errorData) {
-        const apiError = errorData as ApiErrorResponse;
-        logger.error(`API error in ${functionName}`, apiError);
-        throw new ApiError(apiError.ErrorCode, apiError.ErrorDescription);
+      const data = await response.json();
+
+      // LACRM API v2 returns errors as { ErrorCode, ErrorDescription }
+      // Success responses return the data directly (no wrapper)
+      if (data && typeof data === 'object' && 'ErrorCode' in data) {
+        const errorData = data as ApiErrorResponse;
+        logger.error(`API error in ${functionName}`, errorData);
+        throw new ApiError(errorData.ErrorCode, errorData.ErrorDescription);
       }
 
-      throw new ApiError(
-        `HTTP_${response.status}`,
-        `HTTP error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    // LACRM API v2 returns errors as { ErrorCode, ErrorDescription }
-    // Success responses return the data directly (no wrapper)
-    if (data && typeof data === 'object' && 'ErrorCode' in data) {
-      const errorData = data as ApiErrorResponse;
-      logger.error(`API error in ${functionName}`, errorData);
-      throw new ApiError(errorData.ErrorCode, errorData.ErrorDescription);
-    }
-
-    return data as T;
+      return data as T;
+    }, {
+      maxRetries: cfg.maxRetries,
+      baseMs: cfg.baseMs,
+      deadlineMs: cfg.deadlineMs,
+      shouldRetry: (err) =>
+        isIdempotent(functionName) && (err instanceof TransientHttpError || isNetworkError(err)),
+      retryAfterMs: (err) => (err instanceof TransientHttpError ? err.retryAfterMs : undefined),
+      onRetry: (err, attempt, delay) =>
+        logger.warn(
+          `Retrying ${functionName} (attempt ${attempt + 1}/${cfg.maxRetries}) after ${delay}ms: ` +
+            `${err instanceof Error ? err.message : String(err)}`
+        )
+    });
   }
 
   /**
@@ -293,7 +330,10 @@ export class LacrmClient {
         'Authorization': this.apiKey
         // Note: Don't set Content-Type for FormData - browser/node sets it with boundary
       },
-      body: formData
+      body: formData,
+      // Bound the upload so a stalled connection can't hang forever. File
+      // uploads are writes, so they are not auto-retried.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {

@@ -87,6 +87,26 @@ export class ApiError extends LacrmError {
 }
 
 /**
+ * Error thrown for a transient HTTP failure (a retryable 5xx / gateway
+ * timeout). Subclasses ApiError so its code/message render identically to a
+ * plain HTTP error for callers that do not care about retryability; the extra
+ * `status` and `retryAfterMs` fields let the retry runner make its decision.
+ */
+export class TransientHttpError extends ApiError {
+  /** The HTTP status code that triggered the transient classification. */
+  public readonly status: number;
+  /** Parsed Retry-After delay in milliseconds, if the server sent one. */
+  public readonly retryAfterMs?: number;
+
+  constructor(status: number, statusText: string, retryAfterMs?: number) {
+    super(`HTTP_${status}`, `HTTP error: ${status} ${statusText}`);
+    this.name = 'TransientHttpError';
+    this.status = status;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/**
  * Format an error for LLM-friendly response.
  *
  * Converts various error types into actionable messages that help

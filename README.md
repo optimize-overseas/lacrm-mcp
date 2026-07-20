@@ -75,6 +75,23 @@ DEBUG=1 LACRM_DEBUG_PARAMS=1 lacrm-mcp
 The API key itself is sent in the `Authorization` header and is never included
 in the logged parameters.
 
+### Automatic retries (optional)
+
+Read operations (all `Get*` API functions) are automatically retried on
+transient failures - HTTP 429/500/502/503/504/522/524, network drops, and
+request timeouts - using jittered exponential backoff that honors the
+`Retry-After` header. Write operations (`Create*`/`Edit*`/`Delete*`) are **never**
+retried, so a timed-out write cannot be duplicated. The total retry budget is
+bounded so a call never runs past the single-request timeout ceiling.
+
+Defaults are sensible; override them with environment variables if needed:
+
+```bash
+export LACRM_MAX_RETRIES=3         # retries after the first attempt
+export LACRM_RETRY_BASE_MS=400     # backoff base (ms); doubles each attempt
+export LACRM_RETRY_DEADLINE_MS=175000  # total wall-clock budget across attempts (ms)
+```
+
 ## Claude Desktop Configuration
 
 Add to your Claude Desktop configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
