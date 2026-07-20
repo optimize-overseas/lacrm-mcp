@@ -85,6 +85,23 @@ describe('LacrmClient retry behavior', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does NOT retry Edit*/Delete* writes on a 500', async () => {
+    for (const fn of ['EditContact', 'DeleteContact']) {
+      const fetchMock = vi.fn()
+        .mockResolvedValue(fakeResponse({ ok: false, status: 500, statusText: 'Server Error' }));
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+      await expect(client.call(fn, { ContactId: '1' })).rejects.toBeInstanceOf(ApiError);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('does NOT retry a write on a network failure', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    await expect(client.call('CreateContact', { Name: 'x' })).rejects.toBeInstanceOf(TypeError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('gives up after exhausting retries on a persistent 500', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValue(fakeResponse({ ok: false, status: 500, statusText: 'Server Error' }));

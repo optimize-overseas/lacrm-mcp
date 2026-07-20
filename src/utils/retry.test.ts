@@ -118,6 +118,16 @@ describe('getRetryConfig', () => {
     expect(cfg.maxRetries).toBe(3);
     expect(cfg.baseMs).toBe(400);
   });
+
+  it('lets LACRM_MAX_RETRIES=0 disable retries (0 is valid for retries)', () => {
+    expect(getRetryConfig({ LACRM_MAX_RETRIES: '0' }).maxRetries).toBe(0);
+  });
+
+  it('still rejects a zero/negative baseMs or deadlineMs (those must be positive)', () => {
+    const cfg = getRetryConfig({ LACRM_RETRY_BASE_MS: '0', LACRM_RETRY_DEADLINE_MS: '0' });
+    expect(cfg.baseMs).toBe(400);
+    expect(cfg.deadlineMs).toBe(175000);
+  });
 });
 
 // A controllable test harness: a fake clock + recording sleep so retry() never

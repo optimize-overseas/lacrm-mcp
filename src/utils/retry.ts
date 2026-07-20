@@ -92,15 +92,16 @@ export interface RetryConfig {
  * effect (`0` and negatives are treated as invalid and ignored).
  */
 export function getRetryConfig(env: Record<string, string | undefined>): RetryConfig {
-  const readPositiveInt = (raw: string | undefined, fallback: number): number => {
+  // maxRetries may be 0 (disables retries); baseMs/deadlineMs must be positive.
+  const readInt = (raw: string | undefined, fallback: number, min: number): number => {
     if (raw == null) return fallback;
     const n = Number(raw);
-    return Number.isInteger(n) && n > 0 ? n : fallback;
+    return Number.isInteger(n) && n >= min ? n : fallback;
   };
   return {
-    maxRetries: readPositiveInt(env.LACRM_MAX_RETRIES, DEFAULTS.maxRetries),
-    baseMs: readPositiveInt(env.LACRM_RETRY_BASE_MS, DEFAULTS.baseMs),
-    deadlineMs: readPositiveInt(env.LACRM_RETRY_DEADLINE_MS, DEFAULTS.deadlineMs),
+    maxRetries: readInt(env.LACRM_MAX_RETRIES, DEFAULTS.maxRetries, 0),
+    baseMs: readInt(env.LACRM_RETRY_BASE_MS, DEFAULTS.baseMs, 1),
+    deadlineMs: readInt(env.LACRM_RETRY_DEADLINE_MS, DEFAULTS.deadlineMs, 1),
   };
 }
 
