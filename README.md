@@ -1,17 +1,18 @@
 # LACRM MCP Server
 
-A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 87 tools.
+A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 88 tools.
 
 Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm (see the npm page or `package.json` for the current version).
 
 ## Key Features
 
-- **87 tools** covering contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, bulk CSV, and settings
+- **88 tools** covering contacts, pipelines, tasks, events, notes, emails, files, relationships, groups, bulk CSV, and settings
 - **Name resolution**: Search tools accept human-readable names (status names, user names, calendar names, custom field names) and auto-resolve to IDs at runtime — no prerequisite lookup calls needed
 - **count_only mode**: All search/list tools support `count_only: true` which auto-paginates through all results and returns accurate totals with categorical breakdowns — no manual pagination required
 - **Flat-string shortcuts**: `email_address`, `phone_number`, `website_url` on contact create/edit auto-convert to the required array format
 - **Response summaries**: List-returning tools wrap results in `{summary, results}` envelopes with machine-counted page counts and breakdowns
 - **ID sanitization**: Defense-in-depth stripping of accidental quote characters from ID parameters
+- **Resumable bulk runs**: A long bulk import runs in a detached worker; if that process is interrupted, the run reports itself as `interrupted` rather than hanging on `running`, and can be resumed at the first unprocessed row without reapplying completed rows
 - **Rate limiting**: Client-side enforcement of 120 requests/minute with automatic waiting
 
 ## Installation
@@ -304,7 +305,7 @@ Use:
 
 ## Bulk CSV Operations (v1.4.0)
 
-Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second guidance. Four tools cover the workflow, and everything is **instance-agnostic**: the caller supplies the entire field configuration (which CSV columns map to which LACRM fields, how each one merges, and any create-time defaults) as tool arguments. No field names, merge rules, or use cases are built into the server.
+Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second guidance. Five tools cover the workflow, and everything is **instance-agnostic**: the caller supplies the entire field configuration (which CSV columns map to which LACRM fields, how each one merges, and any create-time defaults) as tool arguments. No field names, merge rules, or use cases are built into the server.
 
 | Tool | Purpose |
 |------|---------|
@@ -337,10 +338,21 @@ Update mode can also carry a **structured address** via `address_config` (same s
 
 `bulk_execute` spawns a separate worker process that calls LACRM strictly sequentially at >=1s spacing, so a multi-thousand-row run (which can take hours) proceeds independently of the request that started it. Run state is persisted to disk — directory configurable via `LACRM_BULK_RUNS_DIR` (default: a `lacrm-bulk-runs` folder under the OS temp dir).
 
-**If a run is interrupted, resume it — don't start over.** The worker is an ordinary process: restarting the host, or killing it, ends the run. What survives is its state, which is rewritten after *every* row. So:
+### Interrupted runs & resume (v1.8.0)
 
-- `bulk_run_status` reports such a run as `status: "interrupted"` (with `stored_status`, `interrupted_reason`, and `resumable`) instead of reporting `running` forever. Interruption is detected from the worker's recorded process id and from how long the run has been silent, so neither a dead worker nor a recycled process id is mistaken for progress.
-- `bulk_run_resume` relaunches the worker for that run. Processing continues at the first unprocessed row; **rows already applied are never applied again**. It refuses if the run has finished, if nothing is left to process, or if the run is still actively being worked on — resuming a live run would process rows twice.
+**If a run is interrupted, resume it — don't start over.** The worker is an ordinary process: restarting the host, or killing it, ends the run. What survives is its state, which is rewritten after *every* row.
+
+| Reported `status` | Meaning |
+|---|---|
+| `running` | a worker is alive and recording progress |
+| `interrupted` | the run stopped without finishing — resumable |
+| `completed` | every row processed; `reportCsvPath` is ready |
+| `failed` | the worker hit a fatal error and recorded it in `error` |
+
+- `bulk_run_status` reports an interrupted run as `status: "interrupted"` — with `stored_status`, `interrupted_reason`, `resumable`, and `seconds_since_progress` — instead of reporting `running` forever. Interruption is detected from the worker's recorded process id **and** from how long the run has been silent, so neither a dead worker nor a process id later recycled onto an unrelated process is mistaken for progress. The check is derived when you read it and never rewrites state, so it cannot race a live worker.
+- `bulk_run_resume` relaunches the worker for that run. Processing continues at the first unprocessed row; **rows already applied are never applied again.** It refuses if the run has finished, if nothing is left to process, or if the run is still actively being worked on — resuming a live run would process rows twice.
+
+The silence threshold is deliberately generous (at least 15 minutes, scaled up for slower pacing): a single row can legitimately take a while when the API is slow and the client is retrying, and wrongly declaring a healthy run dead is worse than noticing a stopped one late.
 
 ### Typical workflow
 
@@ -378,7 +390,7 @@ Update mode can also carry a **structured address** via `address_config` (same s
 | `get_contacts_by_ids` | Get multiple contacts by IDs (up to 200) |
 | `search_contacts` | Search contacts by name, email, phone, or custom fields |
 
-### Bulk CSV Tools (4)
+### Bulk CSV Tools (5)
 
 See [Bulk CSV Operations](#bulk-csv-operations-v140) for the full workflow and merge model.
 
