@@ -312,6 +312,7 @@ Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second 
 | `bulk_validate_csv` | Dry-run validation (no writes): row count, present vs. preserved columns, missing required columns/values, duplicate keys, and a time estimate |
 | `bulk_execute` | Launch a detached, throttled worker; returns a `run_id` immediately (requires `confirm: true`) |
 | `bulk_run_status` | Progress, per-row errors, and the path to the final report CSV |
+| `bulk_run_resume` | Continue a run whose worker stopped before finishing, from the first unprocessed row |
 
 **Template column order:** generated templates list LACRM built-in fields first — the key column, then the owner name, then the address block, then any other standard fields (Email, Phone, etc.) — and custom fields last. Columns read left-to-right as identity → standard → custom, regardless of the order fields are supplied in.
 
@@ -334,7 +335,12 @@ Update mode can also carry a **structured address** via `address_config` (same s
 
 ### Throttle & detached execution
 
-`bulk_execute` spawns a separate worker process that calls LACRM strictly sequentially at >=1s spacing, so a multi-thousand-row run (which can take hours) proceeds independently of the request that started it and survives MCP/host restarts. Run state is persisted to disk — directory configurable via `LACRM_BULK_RUNS_DIR` (default: a `lacrm-bulk-runs` folder under the OS temp dir). A crashed run resumes from where it left off if re-launched against the same run's spec.
+`bulk_execute` spawns a separate worker process that calls LACRM strictly sequentially at >=1s spacing, so a multi-thousand-row run (which can take hours) proceeds independently of the request that started it. Run state is persisted to disk — directory configurable via `LACRM_BULK_RUNS_DIR` (default: a `lacrm-bulk-runs` folder under the OS temp dir).
+
+**If a run is interrupted, resume it — don't start over.** The worker is an ordinary process: restarting the host, or killing it, ends the run. What survives is its state, which is rewritten after *every* row. So:
+
+- `bulk_run_status` reports such a run as `status: "interrupted"` (with `stored_status`, `interrupted_reason`, and `resumable`) instead of reporting `running` forever. Interruption is detected from the worker's recorded process id and from how long the run has been silent, so neither a dead worker nor a recycled process id is mistaken for progress.
+- `bulk_run_resume` relaunches the worker for that run. Processing continues at the first unprocessed row; **rows already applied are never applied again**. It refuses if the run has finished, if nothing is left to process, or if the run is still actively being worked on — resuming a live run would process rows twice.
 
 ### Typical workflow
 
@@ -342,6 +348,7 @@ Update mode can also carry a **structured address** via `address_config` (same s
 2. `bulk_validate_csv` -> review row counts, which fields will change vs. be preserved, and any blocking errors. **Always preview before executing.**
 3. `bulk_execute` with `confirm: true` -> receive a `run_id`.
 4. `bulk_run_status` -> poll until `status` is `completed`, then fetch the report CSV.
+   If it reports `interrupted`, call `bulk_run_resume` with the same `run_id` and keep polling.
 
 ## Available Tools
 
@@ -381,6 +388,7 @@ See [Bulk CSV Operations](#bulk-csv-operations-v140) for the full workflow and m
 | `bulk_validate_csv` | Dry-run validation of a bulk CSV against a field configuration (no writes) |
 | `bulk_execute` | Launch a detached, throttled (1 req/sec) bulk create/update worker; returns a run id |
 | `bulk_run_status` | Get progress, per-row errors, and the report CSV for a bulk run |
+| `bulk_run_resume` | Resume an interrupted bulk run at the first unprocessed row |
 
 ### Event Tools (6)
 

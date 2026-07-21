@@ -230,3 +230,84 @@ describe('buildReportCsv', () => {
     expect(csv).toBe(['Row,Key,ContactId,Status,Message', '1,1,1,updated,', '2,2,,error,"bad, value"'].join('\n'));
   });
 });
+
+/**
+ * Resume semantics.
+ *
+ * The whole point of persisting state after every row is that an interrupted
+ * run can be picked up without redoing work — and in a CRM, "redoing work"
+ * means writing to contacts a second time. These pin that guarantee.
+ */
+describe('resuming an interrupted run', () => {
+  it('continues at the first unprocessed row and never reapplies earlier ones', async () => {
+    const store = freshStore();
+    const spec: BulkRunSpec = { ...UPDATE_SPEC, runId: 'resume-1' };
+    // Simulate a worker that died after the first two of three rows.
+    store.writeSpec(spec);
+    store.writeState({
+      runId: spec.runId,
+      operation: 'update',
+      status: 'running',
+      total: spec.rows.length,
+      processed: 2,
+      succeeded: 2,
+      failed: 0,
+      startedAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      results: [
+        { rowNumber: 1, status: 'updated' },
+        { rowNumber: 2, status: 'updated' },
+      ],
+    });
+
+    const client = recordingClient();
+    const state = await runBulk(spec, { ...deps(store, client), workerPid: 12345 });
+
+    // Only the untouched rows were sent to the API.
+    const edits = client.calls.filter((c) => c.fn === 'EditContact' || c.fn === 'CreateContact');
+    expect(edits.length).toBe(spec.rows.length - 2);
+    expect(state.processed).toBe(spec.rows.length);
+    expect(state.status).toBe('completed');
+    // The earlier rows' outcomes are preserved in the report.
+    expect(state.results.slice(0, 2).map((r) => r.rowNumber)).toEqual([1, 2]);
+  });
+
+  it('stamps the worker pid so a later status read can tell live from dead', async () => {
+    const store = freshStore();
+    const spec: BulkRunSpec = { ...UPDATE_SPEC, runId: 'resume-2' };
+    await runBulk(spec, { ...deps(store, recordingClient()), workerPid: 4242 });
+    expect(store.readState('resume-2')?.workerPid).toBe(4242);
+  });
+
+  it('a resumed run takes ownership: fresh pid, status back to running', async () => {
+    const store = freshStore();
+    const spec: BulkRunSpec = { ...UPDATE_SPEC, runId: 'resume-3' };
+    store.writeSpec(spec);
+    store.writeState({
+      runId: spec.runId,
+      operation: 'update',
+      status: 'failed',
+      total: spec.rows.length,
+      processed: 1,
+      succeeded: 1,
+      failed: 0,
+      startedAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      results: [{ rowNumber: 1, status: 'updated' }],
+      workerPid: 999,
+      error: 'host restarted',
+    });
+
+    const state = await runBulk(spec, { ...deps(store, recordingClient()), workerPid: 777 });
+    expect(state.workerPid).toBe(777);
+    expect(state.status).toBe('completed');
+  });
+
+  it('works without a pid at all (callers are not required to supply one)', async () => {
+    const store = freshStore();
+    const spec: BulkRunSpec = { ...UPDATE_SPEC, runId: 'resume-4' };
+    const state = await runBulk(spec, deps(store, recordingClient()));
+    expect(state.status).toBe('completed');
+    expect(state.workerPid).toBeUndefined();
+  });
+});

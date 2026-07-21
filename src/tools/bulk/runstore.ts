@@ -3,8 +3,13 @@
  *
  * A bulk run is detached from the MCP request that launches it, so its spec (config
  * + rows) and live state (progress) live on disk where a separate worker process
- * writes them and a later `bulk_run_status` call reads them. State survives MCP and
- * host restarts. The directory is configurable via `LACRM_BULK_RUNS_DIR`.
+ * writes them and a later `bulk_run_status` call reads them.
+ *
+ * The files survive an MCP or host restart; the WORKER does not. State is
+ * rewritten after every row precisely so an interrupted run can be picked up
+ * from where it stopped (`bulk_run_resume`) instead of being redone.
+ *
+ * The directory is configurable via `LACRM_BULK_RUNS_DIR`.
  *
  * @module tools/bulk/runstore
  */
@@ -65,6 +70,17 @@ export interface BulkRunState {
   reportCsvPath?: string;
   /** Set if the worker hit a fatal error. */
   error?: string;
+  /**
+   * Process id of the worker that owns this run, stamped by the worker itself
+   * (never by the launcher, which would race the worker's first state write).
+   * Lets a status read tell "still working" from "died without finishing" -
+   * see tools/bulk/liveness. Absent on runs started before this was recorded.
+   */
+  workerPid?: number;
+  /** ISO timestamp at which that worker took the run over (a fresh one on resume). */
+  workerStartedAt?: string;
+  /** How many times this run has been resumed after an interruption. */
+  resumeCount?: number;
 }
 
 /** The default runs directory: `$LACRM_BULK_RUNS_DIR` or `<os-temp>/lacrm-bulk-runs`. */

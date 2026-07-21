@@ -1,13 +1,15 @@
 /**
  * Generic bulk-CSV tools for LACRM.
  *
- * Four tools let a caller import or update contacts in bulk from a CSV while
+ * Five tools let a caller import or update contacts in bulk from a CSV while
  * honoring LACRM's 1-request/second agreement:
  *
  *   - bulk_generate_template : produce a ready-to-fill CSV + a per-field behavior report
  *   - bulk_validate_csv      : dry-run validation (zero writes) + a time estimate
  *   - bulk_execute           : launch a detached, throttled worker; returns a run id
  *   - bulk_run_status        : progress, per-row errors, and the report-CSV path
+ *   - bulk_run_resume        : continue a run whose worker died, from the first
+ *                              unprocessed row (never reapplies completed rows)
  *
  * INSTANCE-AGNOSTIC BY DESIGN: nothing here encodes any particular CRM's fields,
  * merge rules, defaults, or use cases. The caller supplies the entire field
@@ -29,6 +31,7 @@ import { parseCsv } from './csv.js';
 import { validateBulkCsv } from './validate.js';
 import { generateTemplate } from './template.js';
 import { RunStore, defaultRunsDir, type BulkRunSpec, type BulkRunState } from './runstore.js';
+import { evaluateLiveness } from './liveness.js';
 import { addressColumnList, type AddressColumnMapping } from './address.js';
 import type { FieldSpec } from './types.js';
 
@@ -306,11 +309,31 @@ success/failure counts, per-row errors, and the path to the final report CSV whe
         const store = new RunStore(defaultRunsDir());
         const state = store.readState(run_id);
         if (!state) return ok({ found: false, run_id });
+        const spec = store.readSpec(run_id);
         const errors = state.results.filter((r) => r.status === 'error');
+        // A worker that died mid-run never rewrites its state, so the stored
+        // status would say `running` forever. Reconcile it against reality here
+        // rather than reporting a number we know can be false.
+        const liveness = evaluateLiveness({
+          status: state.status,
+          updatedAt: state.updatedAt,
+          workerPid: state.workerPid,
+          intervalMs: spec?.intervalMs,
+          nowMs: Date.now(),
+        });
         return ok({
           found: true,
           run_id,
-          status: state.status,
+          status: liveness.status,
+          ...(liveness.status === 'interrupted'
+            ? {
+                stored_status: state.status,
+                interrupted_reason: liveness.interruptedReason,
+                resumable: state.processed < state.total,
+                resume: 'Call bulk_run_resume with this run_id to continue from the first unprocessed row.',
+              }
+            : {}),
+          seconds_since_progress: liveness.secondsSinceProgress,
           operation: state.operation,
           total: state.total,
           processed: state.processed,
@@ -321,6 +344,90 @@ success/failure counts, per-row errors, and the path to the final report CSV whe
           reportCsvPath: state.reportCsvPath,
           error: state.error,
           errors: errors.slice(0, 100),
+        });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  // ---- bulk_run_resume --------------------------------------------------------
+  server.registerTool(
+    'bulk_run_resume',
+    {
+      title: 'Bulk: Resume Run',
+      description: `Continue a bulk run whose worker stopped before finishing (host restart, killed process).
+Progress is persisted after every row, so the run resumes at the first unprocessed row and rows that were
+already applied are never applied again. Refuses if the run is already finished or still actively running.`,
+      inputSchema: {
+        run_id: z.string().describe('The run_id of an interrupted run (see bulk_run_status).'),
+      },
+    },
+    async ({ run_id }) => {
+      try {
+        const store = new RunStore(defaultRunsDir());
+        const spec = store.readSpec(run_id);
+        const state = store.readState(run_id);
+        if (!spec || !state) return ok({ resumed: false, found: false, run_id });
+
+        if (state.status === 'completed') {
+          return ok({
+            resumed: false,
+            run_id,
+            status: 'completed',
+            reason: 'This run already finished; there is nothing left to process.',
+            reportCsvPath: state.reportCsvPath,
+          });
+        }
+
+        // Never launch a second worker onto a live run: two workers sharing one
+        // state file would both write it and reapply each other's rows.
+        const liveness = evaluateLiveness({
+          status: state.status,
+          updatedAt: state.updatedAt,
+          workerPid: state.workerPid,
+          intervalMs: spec.intervalMs,
+          nowMs: Date.now(),
+        });
+        if (liveness.status === 'running') {
+          return ok({
+            resumed: false,
+            run_id,
+            status: 'running',
+            processed: state.processed,
+            total: state.total,
+            reason: 'This run is still being worked on; resuming now would process rows twice.',
+          });
+        }
+
+        if (state.processed >= state.total) {
+          return ok({
+            resumed: false,
+            run_id,
+            status: liveness.status,
+            reason: 'Every row has already been processed; nothing left to resume.',
+          });
+        }
+
+        const child = spawn(process.execPath, [workerScriptPath(), run_id], {
+          detached: true,
+          stdio: 'ignore',
+          env: process.env,
+        });
+        child.unref();
+
+        const remaining = state.total - state.processed;
+        logger.info(`bulk_run_resume: relaunched run ${run_id} at row ${state.processed + 1} of ${state.total}`);
+        return ok({
+          resumed: true,
+          run_id,
+          resumed_at_row: state.processed + 1,
+          remaining,
+          total: state.total,
+          estimate_seconds: Math.ceil(
+            (remaining * (state.operation === 'update' ? 2 : 1) * (spec.intervalMs ?? 1000)) / 1000,
+          ),
+          poll: 'Call bulk_run_status with this run_id for progress.',
         });
       } catch (error) {
         return fail(error);

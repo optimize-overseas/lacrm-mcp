@@ -4,9 +4,15 @@
  *
  * Spawned by the `bulk_execute` tool as an independent, unref'd process so a
  * multi-thousand-row run (paced at 1 request/second) can outlive the 180s MCP
- * request chain and survive MCP/host restarts. It loads the run spec from the runs
- * directory, processes it through the throttled runner, and persists progress + a
- * report CSV that `bulk_run_status` reads.
+ * request chain. It loads the run spec from the runs directory, processes it
+ * through the throttled runner, and persists progress + a report CSV that
+ * `bulk_run_status` reads.
+ *
+ * What survives a restart is the run's STATE, not this process: a host restart
+ * or a kill ends the worker, and `bulk_run_status` then reports the run as
+ * `interrupted`. Because state is written after every row, `bulk_run_resume`
+ * relaunches this worker and the runner continues from the first unprocessed
+ * row - already-applied rows are never reapplied.
  *
  * Usage: `node build/bulk-worker.js <runId>`
  *
@@ -43,6 +49,9 @@ async function main(): Promise<void> {
     call: (functionName, params) => client.call(functionName, params),
     store,
     throttle,
+    // Record ownership so a status read can tell a live run from one whose
+    // worker died without writing a terminal status.
+    workerPid: process.pid,
   });
 
   logger.info(

@@ -28,6 +28,13 @@ export interface RunnerDeps {
   call: LacrmCall;
   store: RunStore;
   throttle: SequentialThrottle;
+  /**
+   * The pid to record as the owner of this run. The worker passes its own
+   * process.pid; stamping it here (rather than at launch) means every state
+   * write carries it and there is no window where the file names a pid that is
+   * not yet the one doing the work.
+   */
+  workerPid?: number;
   /** ISO timestamp provider (injectable for deterministic tests). */
   now?: () => string;
 }
@@ -107,6 +114,15 @@ export async function runBulk(spec: BulkRunSpec, deps: RunnerDeps): Promise<Bulk
       updatedAt: now(),
       results: [],
     };
+  // Take ownership: whoever is running now owns the run, and a resumed run gets
+  // a fresh pid + timestamp. `status` is reset to running so a resume clears a
+  // previous `failed`.
+  if (typeof deps.workerPid === 'number') {
+    state.workerPid = deps.workerPid;
+    state.workerStartedAt = now();
+  }
+  state.status = 'running';
+  state.updatedAt = now();
   deps.store.writeState(state);
 
   try {

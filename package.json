@@ -1,6 +1,6 @@
 {
   "name": "lacrm-mcp",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "MCP server for Less Annoying CRM - 87 tools for contacts, pipelines, tasks, events, bulk CSV, and more",
   "type": "module",
   "bin": {

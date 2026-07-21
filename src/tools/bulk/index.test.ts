@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { registerBulkTools } from './index.js';
 
 /**
@@ -30,10 +34,10 @@ const UPDATE_FIELDS = [
 ];
 
 describe('registerBulkTools', () => {
-  it('registers all four bulk tools', () => {
+  it('registers all five bulk tools', () => {
     const tools = captureTools();
     expect(Object.keys(tools).sort()).toEqual(
-      ['bulk_execute', 'bulk_generate_template', 'bulk_run_status', 'bulk_validate_csv'].sort(),
+      ['bulk_execute', 'bulk_generate_template', 'bulk_run_resume', 'bulk_run_status', 'bulk_validate_csv'].sort(),
     );
   });
 
@@ -124,5 +128,114 @@ describe('registerBulkTools', () => {
     const tools = captureTools();
     const { json } = await callJson(tools.bulk_run_status, { run_id: 'does-not-exist' });
     expect(json.found).toBe(false);
+  });
+});
+
+/**
+ * Interrupted-run reporting and resume.
+ *
+ * These exercise the real tool handlers against a temporary runs directory, so
+ * they cover the wiring (state read, liveness reconciliation, refusal rules)
+ * without launching a worker or making an API call. The one thing they must
+ * never do is let a resume start a second worker on a live run.
+ */
+describe('interrupted runs', () => {
+  function seedRun(state: Record<string, unknown>, spec: Record<string, unknown> = {}) {
+    const dir = join(tmpdir(), `lacrm-bulk-idx-${randomUUID()}`);
+    mkdirSync(dir, { recursive: true });
+    const runId = String(state.runId ?? 'r1');
+    writeFileSync(
+      join(dir, `${runId}.spec.json`),
+      JSON.stringify({ runId, operation: 'update', createdAt: new Date().toISOString(), intervalMs: 1000, presentColumns: [], rows: [], ...spec }),
+    );
+    writeFileSync(join(dir, `${runId}.state.json`), JSON.stringify(state));
+    process.env.LACRM_BULK_RUNS_DIR = dir;
+    return { dir, runId, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  }
+
+  const baseState = (over: Record<string, unknown> = {}) => ({
+    runId: 'r1',
+    operation: 'update',
+    status: 'running',
+    total: 100,
+    processed: 40,
+    succeeded: 38,
+    failed: 2,
+    startedAt: new Date(Date.now() - 3600_000).toISOString(),
+    updatedAt: new Date(Date.now() - 3600_000).toISOString(),
+    results: [],
+    // a pid that cannot be running
+    workerPid: 2147483646,
+    ...over,
+  });
+
+  it('bulk_run_status reports a dead run as interrupted, not running', async () => {
+    const run = seedRun(baseState());
+    try {
+      const { json } = await callJson(captureTools().bulk_run_status, { run_id: 'r1' });
+      expect(json.status).toBe('interrupted');
+      expect(json.stored_status).toBe('running');
+      expect(json.resumable).toBe(true);
+      expect(json.processed).toBe(40);
+    } finally {
+      run.cleanup();
+    }
+  });
+
+  it('bulk_run_status leaves a completed run alone', async () => {
+    const run = seedRun(baseState({ status: 'completed', processed: 100, finishedAt: new Date().toISOString() }));
+    try {
+      const { json } = await callJson(captureTools().bulk_run_status, { run_id: 'r1' });
+      expect(json.status).toBe('completed');
+      expect(json.resumable).toBeUndefined();
+    } finally {
+      run.cleanup();
+    }
+  });
+
+  it('bulk_run_resume refuses a run that is still being worked on', async () => {
+    // The worker is this very process, so it is unambiguously alive.
+    const run = seedRun(baseState({ workerPid: process.pid, updatedAt: new Date().toISOString() }));
+    try {
+      const { json } = await callJson(captureTools().bulk_run_resume, { run_id: 'r1' });
+      expect(json.resumed).toBe(false);
+      expect(json.status).toBe('running');
+      expect(json.reason).toMatch(/twice/);
+    } finally {
+      run.cleanup();
+    }
+  });
+
+  it('bulk_run_resume refuses a completed run', async () => {
+    const run = seedRun(baseState({ status: 'completed', processed: 100 }));
+    try {
+      const { json } = await callJson(captureTools().bulk_run_resume, { run_id: 'r1' });
+      expect(json.resumed).toBe(false);
+      expect(json.status).toBe('completed');
+    } finally {
+      run.cleanup();
+    }
+  });
+
+  it('bulk_run_resume refuses when every row was already processed', async () => {
+    const run = seedRun(baseState({ status: 'failed', processed: 100 }));
+    try {
+      const { json } = await callJson(captureTools().bulk_run_resume, { run_id: 'r1' });
+      expect(json.resumed).toBe(false);
+      expect(json.reason).toMatch(/nothing left/i);
+    } finally {
+      run.cleanup();
+    }
+  });
+
+  it('bulk_run_resume reports an unknown run rather than throwing', async () => {
+    const run = seedRun(baseState());
+    try {
+      const { json } = await callJson(captureTools().bulk_run_resume, { run_id: 'no-such-run' });
+      expect(json.resumed).toBe(false);
+      expect(json.found).toBe(false);
+    } finally {
+      run.cleanup();
+    }
   });
 });
