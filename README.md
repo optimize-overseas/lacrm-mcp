@@ -2,9 +2,7 @@
 
 A Model Context Protocol (MCP) server for Less Annoying CRM that provides comprehensive API access through 87 tools.
 
-Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm.
-
-**Current version: 1.3.1**
+Published as [`lacrm-mcp`](https://www.npmjs.com/package/lacrm-mcp) on npm (see the npm page or `package.json` for the current version).
 
 ## Key Features
 
