@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   LEDGER_SKILL,
   HEARTBEAT_INTERVAL_MS,
@@ -12,6 +12,7 @@ import {
   completeLedgerRun,
   sheetDeliverPython,
   sheetDeliverScript,
+  sheetDeliveryConfigured,
   type FireLedger,
   type TerminalLedger,
 } from './async-delivery.js';
@@ -162,44 +163,77 @@ describe('reportSheetName', () => {
   });
 });
 
-describe('sheet deliver helper paths', () => {
-  it('honors the env overrides', () => {
+describe('sheet-upload hook config (pure opt-in env)', () => {
+  it('uses the env values verbatim when set', () => {
     process.env.LACRM_BULK_SHEET_PYTHON = '/custom/python';
     process.env.LACRM_BULK_SHEET_SCRIPT = '/custom/deliver.py';
     try {
       expect(sheetDeliverPython()).toBe('/custom/python');
       expect(sheetDeliverScript()).toBe('/custom/deliver.py');
+      expect(sheetDeliveryConfigured()).toBe(true);
     } finally {
       delete process.env.LACRM_BULK_SHEET_PYTHON;
       delete process.env.LACRM_BULK_SHEET_SCRIPT;
     }
   });
 
-  it('defaults to the host convention under $HOME', () => {
-    expect(sheetDeliverPython()).toMatch(/\/allegiance-ai\/pdfsplit-core\/\.venv\/bin\/python$/);
-    expect(sheetDeliverScript()).toMatch(/\/\.openclaw-allegiance\/scripts\/crm-sheet-deliver\.py$/);
+  it('is disabled when unset - there are NO built-in defaults', () => {
+    delete process.env.LACRM_BULK_SHEET_PYTHON;
+    delete process.env.LACRM_BULK_SHEET_SCRIPT;
+    expect(sheetDeliverPython()).toBeUndefined();
+    expect(sheetDeliverScript()).toBeUndefined();
+    expect(sheetDeliveryConfigured()).toBe(false);
+  });
+
+  it('requires BOTH env vars - one alone stays disabled', () => {
+    process.env.LACRM_BULK_SHEET_PYTHON = '/custom/python';
+    delete process.env.LACRM_BULK_SHEET_SCRIPT;
+    try {
+      expect(sheetDeliveryConfigured()).toBe(false);
+    } finally {
+      delete process.env.LACRM_BULK_SHEET_PYTHON;
+    }
   });
 });
 
 describe('deliverReportSheet', () => {
-  it('passes --csv and --name to the helper and parses its JSON', async () => {
+  beforeEach(() => {
+    process.env.LACRM_BULK_SHEET_PYTHON = '/custom/python';
+    process.env.LACRM_BULK_SHEET_SCRIPT = '/custom/deliver.py';
+  });
+  afterEach(() => {
+    delete process.env.LACRM_BULK_SHEET_PYTHON;
+    delete process.env.LACRM_BULK_SHEET_SCRIPT;
+  });
+
+  it('passes the configured hook, --csv, and --name and parses its JSON', async () => {
     const seen: string[][] = [];
     const result = await deliverReportSheet('/tmp/r.csv', 'My Report', async (file, args) => {
       seen.push([file, ...args]);
       return { stdout: '{"ok": true, "sheet_url": "https://docs.google.com/spreadsheets/d/X/edit"}\n' };
     });
     expect(result).toEqual({ ok: true, sheetUrl: 'https://docs.google.com/spreadsheets/d/X/edit' });
-    expect(seen[0].slice(1)).toEqual([sheetDeliverScript(), '--csv', '/tmp/r.csv', '--name', 'My Report']);
+    expect(seen[0]).toEqual(['/custom/python', '/custom/deliver.py', '--csv', '/tmp/r.csv', '--name', 'My Report']);
   });
 
-  it('reads the LAST stdout line (helper may log above its JSON)', async () => {
+  it('returns ok:false WITHOUT invoking the hook when unconfigured', async () => {
+    delete process.env.LACRM_BULK_SHEET_PYTHON;
+    delete process.env.LACRM_BULK_SHEET_SCRIPT;
+    const result = await deliverReportSheet('/tmp/r.csv', 'N', async () => {
+      throw new Error('must not be called');
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('not configured');
+  });
+
+  it('reads the LAST stdout line (the hook may log above its JSON)', async () => {
     const result = await deliverReportSheet('/tmp/r.csv', 'N', async () => ({
       stdout: 'noise\n{"ok": true, "sheet_url": "https://sheet"}\n',
     }));
     expect(result).toEqual({ ok: true, sheetUrl: 'https://sheet' });
   });
 
-  it('returns ok:false on a helper error JSON, a malformed line, or an exec failure', async () => {
+  it('returns ok:false on a hook error JSON, a malformed line, or an exec failure', async () => {
     expect(
       await deliverReportSheet('/tmp/r.csv', 'N', async () => ({ stdout: '{"ok": false, "error": "boom"}' })),
     ).toEqual({ ok: false, error: 'boom' });
@@ -245,6 +279,14 @@ describe('composeUserText', () => {
     const text = composeUserText(state(), composeCounts(state().results), null);
     expect(text).toContain('report spreadsheet could not be created');
     expect(text).not.toContain('https://');
+  });
+
+  it('a SKIPPED upload notes the report was retained - no failure language, no paths', () => {
+    const text = composeUserText(state(), composeCounts(state().results), null, true);
+    expect(text).toContain('retained on the host');
+    expect(text).not.toContain('could not be created');
+    expect(text).not.toContain('https://');
+    expect(text).not.toContain('/tmp/');
   });
 });
 
@@ -301,6 +343,24 @@ describe('completeLedgerRun', () => {
     expect(patch.status).toBe('SUCCEEDED');
     expect(patch.result.links).toEqual([]);
     expect(patch.result.userText).toContain('report spreadsheet could not be created');
+  });
+
+  it('SKIPS the upload gracefully when the hook env is unset: still SUCCEEDED with counts', async () => {
+    // No deps.deliver and no LACRM_BULK_SHEET_* env: the default path must
+    // skip (never attempt a subprocess) and still post a successful terminal.
+    delete process.env.LACRM_BULK_SHEET_PYTHON;
+    delete process.env.LACRM_BULK_SHEET_SCRIPT;
+    const { ledger, calls } = terminalLedger();
+    await completeLedgerRun(SPEC, state(), { ledger, now: () => 7 });
+    const patch = calls[0].patch as {
+      status: string;
+      result: { links: string[]; counts: Record<string, number>; userText: string };
+    };
+    expect(patch.status).toBe('SUCCEEDED');
+    expect(patch.result.links).toEqual([]);
+    expect(patch.result.counts).toEqual({ created: 1, updated: 1, skipped: 1, failed: 1 });
+    expect(patch.result.userText).toContain('retained on the host');
+    expect(patch.result.userText).not.toContain('could not be created');
   });
 
   it('a worker-fatal run posts FAILED with an INTERNAL-ONLY reason and no userText', async () => {
