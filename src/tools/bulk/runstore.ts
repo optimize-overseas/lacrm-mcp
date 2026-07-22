@@ -43,6 +43,24 @@ export interface BulkRunSpec {
   presentColumns: string[];
   /** Parsed CSV rows, keyed by column. */
   rows: Record<string, string>[];
+  /**
+   * OPTIONAL async-completion fields (all-or-nothing in practice; see
+   * tools/bulk/async-delivery). When the launcher registered the run with a
+   * host completion daemon, `jobId` is set and the worker posts heartbeats and
+   * the terminal result itself; a resumed run reads the SAME jobId from this
+   * spec and completes the same ledger job. When absent, behavior is exactly
+   * the pre-v1.9.0 poll-driven flow.
+   */
+  /** Originating channel of the request ('gmail' | 'asana' | 'googlechat'). */
+  channel?: string;
+  /** Email address of the requesting user. */
+  requestorEmail?: string;
+  /** Channel-native message identifier (mail id / task gid / space), case-exact. */
+  identifier?: string;
+  /** 1-3 sentence plain-language restatement of what was asked, authored at fire time. */
+  requestSummary?: string;
+  /** Completion-daemon job id minted at launch; the worker's delivery handle. */
+  jobId?: string;
 }
 
 export type BulkRowStatus = 'updated' | 'created' | 'no_change' | 'error';
@@ -68,6 +86,9 @@ export interface BulkRunState {
   finishedAt?: string;
   results: BulkRowResult[];
   reportCsvPath?: string;
+  /** URL of the report delivered as an editable Google Sheet (async runs only;
+   * written by the worker after upload so a status read can hand out the link). */
+  reportSheetUrl?: string;
   /** Set if the worker hit a fatal error. */
   error?: string;
   /**

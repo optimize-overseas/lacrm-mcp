@@ -30,9 +30,11 @@ import { logger } from '../../utils/logger.js';
 import { parseCsv } from './csv.js';
 import { validateBulkCsv } from './validate.js';
 import { generateTemplate } from './template.js';
+import { LedgerClient } from '@optimizeoverseas/async-task-core';
 import { RunStore, defaultRunsDir, type BulkRunSpec, type BulkRunState } from './runstore.js';
 import { evaluateLiveness } from './liveness.js';
 import { addressColumnList, type AddressColumnMapping } from './address.js';
+import { registerLedgerJob, type FireLedger } from './async-delivery.js';
 import type { FieldSpec } from './types.js';
 
 const STRATEGY = z.enum(['replace', 'preserve_if_blank', 'union_semicolon', 'never_write']);
@@ -99,7 +101,28 @@ function workerScriptPath(): string {
   return join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bulk-worker.js');
 }
 
-export function registerBulkTools(server: McpServer): void {
+function spawnWorkerDetached(runId: string): void {
+  const child = spawn(process.execPath, [workerScriptPath(), runId], {
+    detached: true,
+    stdio: 'ignore',
+    env: process.env,
+  });
+  child.unref();
+}
+
+/** Test seams; production callers pass nothing. */
+export interface BulkToolDeps {
+  /** Ledger used to register async-completion jobs (defaults to the real SDK client, lazily). */
+  fireLedger?: FireLedger;
+  /** Detached-worker launcher (defaults to the real spawn). */
+  spawnWorker?: (runId: string) => void;
+}
+
+export function registerBulkTools(server: McpServer, deps: BulkToolDeps = {}): void {
+  const spawnWorker = deps.spawnWorker ?? spawnWorkerDetached;
+  // Lazy so the daemon URL env is read at call time and no client is built
+  // for callers that never pass the completion fields.
+  const fireLedger = (): FireLedger => deps.fireLedger ?? new LedgerClient();
   // ---- bulk_generate_template -------------------------------------------------
   server.registerTool(
     'bulk_generate_template',
@@ -189,11 +212,16 @@ Provide the CSV as csv_content (inline) or csv_path (a readable file path).`,
     {
       title: 'Bulk: Execute (live)',
       description: `Execute a bulk create/update by launching a detached background worker that paces calls at
-~1 request/second (LACRM's agreement). Returns a run_id immediately; poll bulk_run_status for progress.
+~1 request/second (LACRM's agreement). Returns a run_id immediately.
 
 SAFETY: this performs LIVE writes. It re-validates first and refuses to run if validation fails. You must
 pass confirm=true to proceed (omitting it returns the validation only). Always show the user a
 bulk_validate_csv preview and obtain explicit approval before passing confirm=true.
+
+ASYNC COMPLETION (optional): pass channel + requestor_email + identifier (and request_summary) and the
+finished result - including the report delivered as an editable Google Sheet - is posted back on the
+originating channel automatically when the run completes; no polling needed. Without them, poll
+bulk_run_status as before.
 
 Update mode uses per-field merge strategies (see fields[].strategy); an absent column is left unchanged.
 Provide the CSV as csv_content or csv_path.`,
@@ -208,6 +236,16 @@ Provide the CSV as csv_content or csv_path.`,
         address_config: updateAddressConfig.optional().describe('Update-mode address mapping (append-if-absent).'),
         interval_ms: z.number().optional().describe('Min ms between calls (default 1000; do not go below 1000).'),
         confirm: z.boolean().optional().describe('Must be true to perform live writes.'),
+        channel: z.string().optional().describe(
+          'Async completion: originating channel (googlechat | gmail | asana). With requestor_email + identifier, the finished result is delivered automatically on that channel.',
+        ),
+        requestor_email: z.string().optional().describe('Async completion: email address of the requesting user.'),
+        identifier: z.string().optional().describe(
+          'Async completion: channel-native message identifier (gmail message id | asana task gid | gchat space), case-exact.',
+        ),
+        request_summary: z.string().optional().describe(
+          'Async completion: 1-3 sentence plain-language restatement of what was asked (composed at fire time).',
+        ),
       },
     },
     async (args) => {
@@ -241,6 +279,21 @@ Provide the CSV as csv_content or csv_path.`,
         const runId = randomUUID();
         const store = new RunStore(defaultRunsDir());
         const intervalMs = Math.max(args.interval_ms ?? 1000, 1000);
+
+        // Async completion (optional): register the run with the completion
+        // daemon BEFORE spawning so the worker can post heartbeats + the
+        // terminal result itself. Any failure here returns undefined and the
+        // run launches exactly as before - the ledger never blocks a bulk run.
+        const jobId = await registerLedgerJob(
+          {
+            channel: args.channel,
+            requestorEmail: args.requestor_email,
+            identifier: args.identifier,
+            requestSummary: args.request_summary,
+          },
+          fireLedger(),
+        );
+
         const spec: BulkRunSpec = {
           runId,
           operation: args.operation,
@@ -253,6 +306,15 @@ Provide the CSV as csv_content or csv_path.`,
           createConfig: args.create_config,
           presentColumns: parsed.headers,
           rows: parsed.rows,
+          ...(jobId
+            ? {
+                channel: args.channel,
+                requestorEmail: args.requestor_email,
+                identifier: args.identifier,
+                requestSummary: args.request_summary,
+                jobId,
+              }
+            : {}),
         };
         store.writeSpec(spec);
 
@@ -272,20 +334,23 @@ Provide the CSV as csv_content or csv_path.`,
         };
         store.writeState(initial);
 
-        const child = spawn(process.execPath, [workerScriptPath(), runId], {
-          detached: true,
-          stdio: 'ignore',
-          env: process.env,
-        });
-        child.unref();
+        spawnWorker(runId);
 
-        logger.info(`bulk_execute: launched run ${runId} (${parsed.rows.length} rows, ${intervalMs}ms pacing)`);
+        logger.info(
+          `bulk_execute: launched run ${runId} (${parsed.rows.length} rows, ${intervalMs}ms pacing${jobId ? `, ledger job ${jobId}` : ''})`,
+        );
         return ok({
           launched: true,
           run_id: runId,
           total: parsed.rows.length,
           estimate_seconds: Math.ceil((parsed.rows.length * (args.operation === 'update' ? 2 : 1) * intervalMs) / 1000),
-          poll: 'Call bulk_run_status with this run_id for progress.',
+          ...(jobId
+            ? {
+                job_id: jobId,
+                delivery:
+                  'The finished result (including the report Sheet) will be delivered automatically on the originating channel; bulk_run_status is for on-demand progress checks only.',
+              }
+            : { poll: 'Call bulk_run_status with this run_id for progress.' }),
         });
       } catch (error) {
         return fail(error);
@@ -342,6 +407,7 @@ success/failure counts, per-row errors, and the path to the final report CSV whe
           startedAt: state.startedAt,
           finishedAt: state.finishedAt,
           reportCsvPath: state.reportCsvPath,
+          ...(state.reportSheetUrl ? { reportSheetUrl: state.reportSheetUrl } : {}),
           error: state.error,
           errors: errors.slice(0, 100),
         });
@@ -409,12 +475,10 @@ already applied are never applied again. Refuses if the run is already finished 
           });
         }
 
-        const child = spawn(process.execPath, [workerScriptPath(), run_id], {
-          detached: true,
-          stdio: 'ignore',
-          env: process.env,
-        });
-        child.unref();
+        // The relaunched worker reads the SAME spec - including any async
+        // completion jobId - so a resumed run heartbeats and completes the
+        // same ledger job it was fired with.
+        spawnWorker(run_id);
 
         const remaining = state.total - state.processed;
         logger.info(`bulk_run_resume: relaunched run ${run_id} at row ${state.processed + 1} of ${state.total}`);
@@ -427,6 +491,12 @@ already applied are never applied again. Refuses if the run is already finished 
           estimate_seconds: Math.ceil(
             (remaining * (state.operation === 'update' ? 2 : 1) * (spec.intervalMs ?? 1000)) / 1000,
           ),
+          ...(spec.jobId
+            ? {
+                delivery:
+                  'This run has async completion delivery: the finished result will be posted automatically on the originating channel.',
+              }
+            : {}),
           poll: 'Call bulk_run_status with this run_id for progress.',
         });
       } catch (error) {

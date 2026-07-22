@@ -61,6 +61,8 @@ src/
 - **Count mode** (v1.3.0): All search/list tools accept `count_only: true`. When enabled, `countAll()` from `utils/count-all.ts` auto-paginates all pages (100-page safety cap, 10,000 items per page) and returns `{total, breakdowns}` with no results array. Handles both wrapped `{Results, HasMoreResults}` and plain array API responses (v1.3.1 fix).
 - **Flat-string shortcuts** (v1.3.0): `create_contact` and `edit_contact` accept `email_address`, `phone_number`, `website_url` as simple strings, auto-converted to the array-of-objects format the API expects. Mutually exclusive with the array versions.
 - **Bulk CSV** (v1.4.0, `tools/bulk/`): 4 tools (`bulk_generate_template`/`bulk_validate_csv`/`bulk_execute`/`bulk_run_status`). **Strictly instance-agnostic** — the caller passes the entire field configuration (column->field mapping, per-field merge `strategy`, create defaults) as arguments; no field names/rules are hardcoded. `bulk_execute` writes a run spec to `LACRM_BULK_RUNS_DIR` and spawns the detached `build/bulk-worker.js` process, which paces calls at 1 req/s (LACRM agreement) via `throttle.ts`, persists progress (`runstore.ts`) so it survives restarts/resumes, and writes a report CSV. Update merge model is **column-presence**: absent column = preserve; present cell applies its `strategy` (`replace` blank-clears, `preserve_if_blank`, `union_semicolon`, `never_write`). All logic is unit-tested (vitest, `npm test`).
+- **Async completion delivery** (v1.9.0, OPT-IN, `tools/bulk/async-delivery.ts`): `bulk_execute` accepts four OPTIONAL params — `channel` (googlechat|gmail|asana), `requestor_email`, `identifier`, `request_summary`. When the three identity fields are all present at `confirm:true`, the launcher registers the run as a job with the host's async completion daemon (loopback `:9102`, via `@optimizeoverseas/async-task-core`, skill name `lacrmbulk`) BEFORE spawning, and persists the minted `jobId` into the run spec. The worker then (1) heartbeats the ledger every 60 s (the daemon's stale window is 30 min; big runs far exceed it), (2) at completion delivers the report CSV as an editable Google Sheet ITSELF by shelling out to the host's `crm-sheet-deliver.py` helper (this package has no Drive client; defaults `$HOME/allegiance-ai/pdfsplit-core/.venv/bin/python` + `$HOME/.openclaw-allegiance/scripts/crm-sheet-deliver.py`, overridable via `LACRM_BULK_SHEET_PYTHON`/`LACRM_BULK_SHEET_SCRIPT` — a documented host coupling), and (3) terminal-posts SUCCEEDED with the sheet link + counts + a deterministic plain-language `userText` (FAILED carries an internal-only `reason`). **Degrade, never block:** a ledger-create failure launches the run with no jobId and the pre-v1.9.0 poll flow applies byte-identically; a spec without a jobId changes nothing. `bulk_run_resume` relaunches on the SAME spec, so a resumed run heartbeats and completes the SAME ledger job. Callers that never pass the fields (the public npm audience) see zero behavior change.
+- **Enforcement-wrapper budget note (recorded, accepted policy):** when deployed behind `lacrmenforcement-wrapper`, only the `bulk_execute` CALL passes through the wrapper (allow-listed by name; new optional params forward untouched — the wrapper validates no schemas). The detached worker's LACRM API calls, its Drive/Sheet upload, and its ledger posts all happen OUTSIDE the wrapper and its session budgets. That bypass is the recorded, accepted policy (async-everywhere master plan §8: the bulk-write precedent) — the worker is throttled at 1 req/s by design and the run was explicitly user-approved at `confirm:true`.
 - **Error handling**: All tool handlers catch errors and return `formatErrorForLLM(error)` with `isError: true`
 - **Logging**: Use `logger.*` from `utils/logger.ts` -- NEVER use `console.log` (corrupts MCP stdio protocol)
 
@@ -80,6 +82,23 @@ npm publish --access public
 # On target host:
 npm install -g lacrm-mcp@latest
 ```
+
+### The `@optimizeoverseas/async-task-core` dependency is VENDORED + BUNDLED (do not convert to a path/registry dep)
+
+`async-task-core` is not published to any registry, and this package deploys via a **registry install**
+(`sudo env "PATH=$PATH" npm install -g --prefix=/usr/local lacrm-mcp@<ver>` on the VM), so a
+`file:../async-task-core` path dep would not exist at install time and would break the deploy.
+The surviving form is:
+
+- `vendor/optimizeoverseas-async-task-core-<ver>.tgz` — the packed SDK tarball, committed to this repo
+  (regenerate with `cd ../async-task-core && npm pack --pack-destination ../lacrm-mcp/vendor`).
+- `dependencies` points at that tarball (`file:vendor/...tgz`) and the package is listed in
+  **`bundleDependencies`**, so `npm publish` ships `node_modules/@optimizeoverseas/async-task-core`
+  INSIDE the published tarball and the global install never consults a registry for it
+  (`vendor/` is also in `files` as belt-and-suspenders).
+
+To bump the SDK: repack into `vendor/`, update the `file:` version in `package.json`, `npm install`,
+commit the tarball + lockfile together.
 
 ## Important Notes
 

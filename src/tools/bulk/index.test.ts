@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { registerBulkTools } from './index.js';
+import { registerBulkTools, type BulkToolDeps } from './index.js';
+import { RunStore } from './runstore.js';
 
 /**
  * Smoke tests for the tool wiring (CSV loading, confirm-gate, estimate, status lookup).
@@ -12,14 +13,14 @@ import { registerBulkTools } from './index.js';
  */
 type Handler = (args: any) => Promise<{ content: { text: string }[]; isError?: boolean }>;
 
-function captureTools(): Record<string, Handler> {
+function captureTools(deps?: BulkToolDeps): Record<string, Handler> {
   const tools: Record<string, Handler> = {};
   const fakeServer = {
     registerTool: (name: string, _def: unknown, handler: Handler) => {
       tools[name] = handler;
     },
   };
-  registerBulkTools(fakeServer as never);
+  registerBulkTools(fakeServer as never, deps);
   return tools;
 }
 
@@ -236,6 +237,193 @@ describe('interrupted runs', () => {
       expect(json.found).toBe(false);
     } finally {
       run.cleanup();
+    }
+  });
+});
+
+/**
+ * Async completion wiring (v1.9.0): the OPTIONAL channel/requestor_email/
+ * identifier params register the run with the completion daemon before the
+ * worker spawns, and the jobId is persisted into the spec. Every failure on
+ * that path degrades to the exact pre-v1.9.0 launch - never blocks the run.
+ */
+describe('bulk_execute async completion', () => {
+  const CSV = 'Contact ID,Status\n1,A\n2,B\n';
+  const EXEC_ARGS = {
+    operation: 'update',
+    key_column: 'Contact ID',
+    fields: UPDATE_FIELDS,
+    csv_content: CSV,
+    confirm: true,
+  };
+  const LEDGER_ARGS = {
+    channel: 'googlechat',
+    requestor_email: 'user@example.com',
+    identifier: 'spaces/AAA',
+    request_summary: 'Update two contacts.',
+  };
+
+  function tempRuns() {
+    const dir = join(tmpdir(), `lacrm-bulk-async-${randomUUID()}`);
+    mkdirSync(dir, { recursive: true });
+    process.env.LACRM_BULK_RUNS_DIR = dir;
+    return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  }
+
+  function deps(behavior?: { fail?: boolean }) {
+    const created: unknown[] = [];
+    const spawned: string[] = [];
+    const d: BulkToolDeps = {
+      fireLedger: {
+        async createJob(input) {
+          created.push(input);
+          if (behavior?.fail) throw new Error('daemon down');
+          return 'job-777';
+        },
+      },
+      spawnWorker: (runId) => {
+        spawned.push(runId);
+      },
+    };
+    return { d, created, spawned };
+  }
+
+  it('registers the job BEFORE spawning and persists the jobId into the spec', async () => {
+    const runs = tempRuns();
+    const { d, created, spawned } = deps();
+    try {
+      const { json } = await callJson(captureTools(d).bulk_execute, { ...EXEC_ARGS, ...LEDGER_ARGS });
+      expect(json.launched).toBe(true);
+      expect(json.job_id).toBe('job-777');
+      expect(json.delivery).toMatch(/delivered automatically/);
+      expect(json.poll).toBeUndefined();
+      expect(created).toEqual([
+        {
+          skill: 'lacrmbulk',
+          channel: 'googlechat',
+          requestorEmail: 'user@example.com',
+          identifier: 'spaces/AAA',
+          requestSummary: 'Update two contacts.',
+        },
+      ]);
+      expect(spawned).toEqual([json.run_id]);
+      const spec = new RunStore(runs.dir).readSpec(json.run_id)!;
+      expect(spec.jobId).toBe('job-777');
+      expect(spec.channel).toBe('googlechat');
+      expect(spec.requestorEmail).toBe('user@example.com');
+      expect(spec.identifier).toBe('spaces/AAA');
+      expect(spec.requestSummary).toBe('Update two contacts.');
+    } finally {
+      runs.cleanup();
+    }
+  });
+
+  it('DEGRADES on a ledger create failure: launches exactly as today, without a jobId', async () => {
+    const runs = tempRuns();
+    const { d, spawned } = deps({ fail: true });
+    try {
+      const { json } = await callJson(captureTools(d).bulk_execute, { ...EXEC_ARGS, ...LEDGER_ARGS });
+      expect(json.launched).toBe(true);
+      expect(json.job_id).toBeUndefined();
+      expect(json.poll).toMatch(/bulk_run_status/);
+      expect(spawned).toHaveLength(1);
+      const spec = new RunStore(runs.dir).readSpec(json.run_id)!;
+      expect(spec.jobId).toBeUndefined();
+      expect(spec.channel).toBeUndefined();
+    } finally {
+      runs.cleanup();
+    }
+  });
+
+  it('without the completion fields, behavior is unchanged: no ledger call, poll flow', async () => {
+    const runs = tempRuns();
+    const { d, created, spawned } = deps();
+    try {
+      const { json } = await callJson(captureTools(d).bulk_execute, EXEC_ARGS);
+      expect(json.launched).toBe(true);
+      expect(json.job_id).toBeUndefined();
+      expect(json.delivery).toBeUndefined();
+      expect(json.poll).toMatch(/bulk_run_status/);
+      expect(created).toHaveLength(0);
+      expect(spawned).toHaveLength(1);
+      expect(new RunStore(runs.dir).readSpec(json.run_id)!.jobId).toBeUndefined();
+    } finally {
+      runs.cleanup();
+    }
+  });
+
+  it('bulk_run_resume relaunches the worker on the SAME spec (jobId travels with the run)', async () => {
+    const dir = join(tmpdir(), `lacrm-bulk-async-${randomUUID()}`);
+    mkdirSync(dir, { recursive: true });
+    process.env.LACRM_BULK_RUNS_DIR = dir;
+    const { d, spawned } = deps();
+    try {
+      writeFileSync(
+        join(dir, 'r9.spec.json'),
+        JSON.stringify({
+          runId: 'r9',
+          operation: 'update',
+          createdAt: new Date().toISOString(),
+          intervalMs: 1000,
+          presentColumns: [],
+          rows: [{}, {}],
+          jobId: 'job-777',
+        }),
+      );
+      writeFileSync(
+        join(dir, 'r9.state.json'),
+        JSON.stringify({
+          runId: 'r9',
+          operation: 'update',
+          status: 'running',
+          total: 2,
+          processed: 1,
+          succeeded: 1,
+          failed: 0,
+          startedAt: new Date(Date.now() - 3600_000).toISOString(),
+          updatedAt: new Date(Date.now() - 3600_000).toISOString(),
+          results: [],
+          workerPid: 2147483646, // a pid that cannot be running
+        }),
+      );
+      const { json } = await callJson(captureTools(d).bulk_run_resume, { run_id: 'r9' });
+      expect(json.resumed).toBe(true);
+      // The relaunched worker reads the same spec file, so the persisted
+      // jobId is what it heartbeats and terminal-posts against.
+      expect(spawned).toEqual(['r9']);
+      expect(json.delivery).toMatch(/delivered automatically|posted automatically/);
+      expect(new RunStore(dir).readSpec('r9')!.jobId).toBe('job-777');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('bulk_run_status surfaces the delivered report sheet URL when the worker recorded one', async () => {
+    const dir = join(tmpdir(), `lacrm-bulk-async-${randomUUID()}`);
+    mkdirSync(dir, { recursive: true });
+    process.env.LACRM_BULK_RUNS_DIR = dir;
+    try {
+      writeFileSync(
+        join(dir, 'r10.spec.json'),
+        JSON.stringify({
+          runId: 'r10', operation: 'update', createdAt: new Date().toISOString(),
+          intervalMs: 1000, presentColumns: [], rows: [{}],
+        }),
+      );
+      writeFileSync(
+        join(dir, 'r10.state.json'),
+        JSON.stringify({
+          runId: 'r10', operation: 'update', status: 'completed', total: 1,
+          processed: 1, succeeded: 1, failed: 0,
+          startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(), results: [],
+          reportSheetUrl: 'https://docs.google.com/spreadsheets/d/X/edit',
+        }),
+      );
+      const { json } = await callJson(captureTools().bulk_run_status, { run_id: 'r10' });
+      expect(json.reportSheetUrl).toBe('https://docs.google.com/spreadsheets/d/X/edit');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

@@ -1,13 +1,14 @@
 {
   "name": "lacrm-mcp",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "MCP server for Less Annoying CRM - 87 tools for contacts, pipelines, tasks, events, bulk CSV, and more",
   "type": "module",
   "bin": {
     "lacrm-mcp": "build/index.js"
   },
   "files": [
-    "build"
+    "build",
+    "vendor"
   ],
   "scripts": {
     "build": "rm -rf build && tsc && chmod 755 build/index.js",
@@ -18,9 +19,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",
+    "@optimizeoverseas/async-task-core": "file:vendor/optimizeoverseas-async-task-core-0.1.0.tgz",
     "csv-parse": "^5.5.6",
     "zod": "^3.25.0"
   },
+  "bundleDependencies": [
+    "@optimizeoverseas/async-task-core"
+  ],
   "devDependencies": {
     "@types/node": "^22",
     "typescript": "^5.3.3",

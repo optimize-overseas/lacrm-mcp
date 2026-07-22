@@ -40,6 +40,31 @@ describe('RunStore', () => {
     expect(store.readSpec('run-1')).toEqual(SPEC);
   });
 
+  it('round-trips the async completion fields (channel/requestorEmail/identifier/requestSummary/jobId)', () => {
+    const store = new RunStore(freshDir());
+    const spec: BulkRunSpec = {
+      ...SPEC,
+      channel: 'googlechat',
+      requestorEmail: 'user@example.com',
+      identifier: 'spaces/AAA',
+      requestSummary: 'Update the June letter contacts.',
+      jobId: 'job-123',
+    };
+    store.writeSpec(spec);
+    const read = store.readSpec('run-1')!;
+    expect(read).toEqual(spec);
+    // The jobId is what lets a resumed run complete the SAME ledger job.
+    expect(read.jobId).toBe('job-123');
+  });
+
+  it('round-trips state with a reportSheetUrl', () => {
+    const store = new RunStore(freshDir());
+    store.writeState({ ...STATE, reportSheetUrl: 'https://docs.google.com/spreadsheets/d/X/edit' });
+    expect(store.readState('run-1')!.reportSheetUrl).toBe(
+      'https://docs.google.com/spreadsheets/d/X/edit',
+    );
+  });
+
   it('round-trips state', () => {
     const store = new RunStore(freshDir());
     store.writeState(STATE);
