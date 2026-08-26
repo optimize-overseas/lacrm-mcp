@@ -70,7 +70,7 @@ function createBehavior(strategy: MergeStrategy, required: boolean): string {
  * LACRM platform standard (built-in) fields — present in every LACRM account — in the
  * order they should appear in a template. Templates list standard fields first
  * (earlier/leftmost columns) and custom fields after (later/rightmost). The Address block
- * is positioned right after the owner name (see generateTemplate), so it is not listed
+ * is positioned right after the contact name (see generateTemplate), so it is not listed
  * here. This is generic LACRM platform knowledge, not specific to any one account.
  */
 const LACRM_STANDARD_FIELD_ORDER = [
@@ -93,7 +93,7 @@ function targetKey(f: FieldSpec): string {
 /**
  * Split fields so LACRM standard (built-in) fields come first (in canonical order) and
  * custom fields come after (in supplied order), returned around the name anchors so the
- * caller can insert the Address block right after the owner name.
+ * caller can insert the Address block right after the contact name.
  */
 function orderForTemplate(fields: FieldSpec[]): { nameAnchors: FieldSpec[]; otherStandard: FieldSpec[]; custom: FieldSpec[] } {
   const standard = fields
@@ -110,9 +110,9 @@ export function generateTemplate(input: GenerateTemplateInput): GeneratedTemplat
   const { operation, fields, keyColumn, keyDescription, includeExampleRow, addressColumns } = input;
   const addressCols = addressColumns ?? [];
 
-  // Column/report order: key -> owner name -> address block -> other LACRM standard fields
+  // Column/report order: key -> contact name -> address block -> other LACRM standard fields
   // -> custom fields. LACRM built-in fields come first (leftmost) and custom fields last
-  // (rightmost); the address block sits right after the owner name.
+  // (rightmost); the address block sits right after the contact name.
   const fillable = orderForTemplate(fields.filter((f) => f.strategy !== 'never_write'));
   const columns: string[] = [];
   if (operation === 'update' && keyColumn) columns.push(keyColumn);

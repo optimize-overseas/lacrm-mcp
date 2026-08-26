@@ -73,20 +73,20 @@ describe('generateTemplate — update mode', () => {
 });
 
 describe('generateTemplate — LACRM standard-field ordering (built-in first, custom last)', () => {
-  it('orders columns: key, owner name, address block, then custom fields', () => {
+  it('orders columns: key, contact name, address block, then custom fields', () => {
     const t = generateTemplate({
       operation: 'update',
       keyColumn: 'Contact Id',
       fields: [
-        { column: 'Owner Name', field: 'Name', strategy: 'preserve_if_blank' }, // LACRM standard (name)
-        { column: 'Owner Name Aliases', strategy: 'union_semicolon' },          // custom
-        { column: '$ Offer', strategy: 'preserve_if_blank' },                   // custom
+        { column: 'Full Name', field: 'Name', strategy: 'preserve_if_blank' }, // LACRM standard (name)
+        { column: 'Aliases', strategy: 'union_semicolon' },          // custom
+        { column: 'Deal Value', strategy: 'preserve_if_blank' },                   // custom
       ],
       addressColumns: ['Address Line 1', 'City', 'State', 'Zip'],
     });
-    expect(t.columns).toEqual(['Contact Id', 'Owner Name', 'Address Line 1', 'City', 'State', 'Zip', 'Owner Name Aliases', '$ Offer']);
+    expect(t.columns).toEqual(['Contact Id', 'Full Name', 'Address Line 1', 'City', 'State', 'Zip', 'Aliases', 'Deal Value']);
     // the report follows the same order
-    expect(t.report.map((r) => r.column)).toEqual(['Contact Id', 'Owner Name', 'Address Line 1', 'City', 'State', 'Zip', 'Owner Name Aliases', '$ Offer']);
+    expect(t.report.map((r) => r.column)).toEqual(['Contact Id', 'Full Name', 'Address Line 1', 'City', 'State', 'Zip', 'Aliases', 'Deal Value']);
   });
 
   it('puts other LACRM built-in fields (e.g. Phone) before custom fields, after the address block', () => {
@@ -94,13 +94,13 @@ describe('generateTemplate — LACRM standard-field ordering (built-in first, cu
       operation: 'update',
       keyColumn: 'Contact Id',
       fields: [
-        { column: 'County', strategy: 'preserve_if_blank' },                    // custom
+        { column: 'Region', strategy: 'preserve_if_blank' },                    // custom
         { column: 'Phone', strategy: 'replace' },                               // LACRM standard
-        { column: 'Owner Name', field: 'Name', strategy: 'preserve_if_blank' }, // LACRM standard (name)
+        { column: 'Full Name', field: 'Name', strategy: 'preserve_if_blank' }, // LACRM standard (name)
       ],
       addressColumns: ['Address Line 1'],
     });
-    expect(t.columns).toEqual(['Contact Id', 'Owner Name', 'Address Line 1', 'Phone', 'County']);
+    expect(t.columns).toEqual(['Contact Id', 'Full Name', 'Address Line 1', 'Phone', 'Region']);
   });
 });
 

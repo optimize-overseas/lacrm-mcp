@@ -398,7 +398,7 @@ describe('completeLedgerRun', () => {
 });
 
 describe('constants', () => {
-  it('heartbeats every 60s (daemon stale window is 30 min)', () => {
+  it('heartbeats every 60s while the run is in flight', () => {
     expect(HEARTBEAT_INTERVAL_MS).toBe(60_000);
   });
 });

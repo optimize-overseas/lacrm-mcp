@@ -217,7 +217,7 @@ Instead of:
 {
   "pipeline_id": "abc123",
   "status_id": "def456",
-  "custom_fields": { "cf_789": "Matt" }
+  "custom_fields": { "cf_789": "Referral" }
 }
 ```
 
@@ -226,7 +226,7 @@ Use:
 {
   "pipeline_id": "abc123",
   "status_name": "Active",
-  "custom_field_names": { "Hunter": "Matt" }
+  "custom_field_names": { "Lead Source": "Referral" }
 }
 ```
 
@@ -315,7 +315,7 @@ Import or update contacts in bulk from a CSV, paced to LACRM's 1-request/second 
 | `bulk_run_status` | Progress, per-row errors, and the path to the final report CSV |
 | `bulk_run_resume` | Continue a run whose worker stopped before finishing, from the first unprocessed row |
 
-**Template column order:** generated templates list LACRM built-in fields first — the key column, then the owner name, then the address block, then any other standard fields (Email, Phone, etc.) — and custom fields last. Columns read left-to-right as identity → standard → custom, regardless of the order fields are supplied in.
+**Template column order:** generated templates list LACRM built-in fields first — the key column, then the contact name, then the address block, then any other standard fields (Email, Phone, etc.) — and custom fields last. Columns read left-to-right as identity → standard → custom, regardless of the order fields are supplied in.
 
 ### Update merge model (column-presence)
 
@@ -569,7 +569,7 @@ Example:
 ```json
 {
   "custom_fields": {
-    "Hunter": "Matt",
+    "Lead Source": "Referral",
     "Deal Value": 50000,
     "Expected Close": "2025-03-15"
   }

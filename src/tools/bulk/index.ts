@@ -136,7 +136,7 @@ always reflects the rules that will actually be applied. Supply the field config
 nothing about any specific CRM is built in.
 
 Returns: { csv, columns, report } where report[].behavior explains each field's merge strategy.
-Columns are ordered LACRM built-in fields first (key, owner name, address block, then other standard fields), then custom fields.`,
+Columns are ordered LACRM built-in fields first (key, contact name, address block, then other standard fields), then custom fields.`,
       inputSchema: {
         operation: z.enum(['create', 'update']).describe('Which operation the template is for.'),
         fields: z.array(fieldSpec).describe('Field configuration (the columns "on the menu").'),

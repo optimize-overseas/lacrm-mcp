@@ -399,8 +399,8 @@ Each schema tool returns field information including:
 
 If you receive an error about a missing required field, call the appropriate schema tool to see what fields are needed.
 
-Example error: "'Hunter' field is required for CreatePipelineItem"
-Solution: Call get_pipeline_item_schema(pipeline_id) to see the Hunter field's valid options.
+Example error: "'Lead Source' field is required for CreatePipelineItem"
+Solution: Call get_pipeline_item_schema(pipeline_id) to see the Lead Source field's valid options.
 `;
 
 export function registerDiscoveryTools(server: McpServer): void {

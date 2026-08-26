@@ -3,13 +3,13 @@
  *
  * When `bulk_execute` is called with the OPTIONAL completion fields (channel,
  * requestor_email, identifier), the launcher registers the run as a job with
- * the host's async completion daemon (loopback :9102, via
- * `@optimizeoverseas/async-task-core`) BEFORE spawning the worker, and
- * persists the minted jobId into the run spec. The detached worker then:
+ * a host-provided async completion service (endpoint from `ASYNC_DAEMON_URL`)
+ * BEFORE spawning the worker, and persists the minted jobId into the run spec.
+ * The detached worker then:
  *
- *   1. heartbeats the ledger every 60 s while the run is in flight (the
- *      daemon's stale window is 30 min; a multi-thousand-row run at 1 req/s
- *      runs far past it),
+ *   1. heartbeats the ledger every 60 s while the run is in flight (a silent
+ *      job is marked stale well before a multi-thousand-row run at 1 req/s
+ *      finishes),
  *   2. at completion optionally uploads the report CSV as an editable Google
  *      Sheet ITSELF (by shelling out to a host-provided CSV->Sheet hook - see
  *      `deliverReportSheet`), and
@@ -37,10 +37,10 @@ import { execFile } from 'node:child_process';
 import { logger } from '../../utils/logger.js';
 import type { BulkRowResult, BulkRunSpec, BulkRunState } from './runstore.js';
 
-/** Ledger skill name; the host's completion daemon must allow-list it for delivery. */
+/** Ledger skill name reported with each job. */
 export const LEDGER_SKILL = 'lacrmbulk';
 
-/** Heartbeat cadence while the worker runs (daemon stale window is 30 min). */
+/** Heartbeat cadence while the worker runs. */
 export const HEARTBEAT_INTERVAL_MS = 60_000;
 
 /**

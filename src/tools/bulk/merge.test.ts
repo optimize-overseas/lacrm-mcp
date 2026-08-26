@@ -188,12 +188,12 @@ describe('computeUpdateParams — address append-if-absent', () => {
 
   it('composes a flat-field update AND an address append in one row', () => {
     const params = computeUpdateParams({
-      fields: [{ column: '$ Offer', strategy: 'preserve_if_blank' }],
-      presentColumns: ['$ Offer', 'Street', 'City', 'State', 'Zip'],
-      row: { '$ Offer': '5000', Street: '900 Elm Dr', City: 'Austin', State: 'TX', Zip: '78701' },
+      fields: [{ column: 'Deal Value', strategy: 'preserve_if_blank' }],
+      presentColumns: ['Deal Value', 'Street', 'City', 'State', 'Zip'],
+      row: { 'Deal Value': '5000', Street: '900 Elm Dr', City: 'Austin', State: 'TX', Zip: '78701' },
       existing, addressConfig,
     });
-    expect(params['$ Offer']).toBe('5000');
+    expect(params['Deal Value']).toBe('5000');
     expect((params.Address as any[])).toHaveLength(2);
   });
 });
