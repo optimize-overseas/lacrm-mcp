@@ -34,9 +34,8 @@ const RULES: Rule[] = [
   // secret the same way (`?api_key=<key>`). Must stay SECOND (after PEM) so no
   // later rule half-masks a value inside a query first. Not anchored on a
   // scheme: a client reports a connection failure as a bare path with the
-  // credential intact. Full reasoning lives beside the copy in the allegiance
-  // repo's session-archival-daemon/src/redact.ts.
-  { pattern: /([?#])(?:[^\s"'<>`)#&]*&)*?(?:[A-Za-z0-9_.%-]*(?:signature|sig|api[_-]?key|apikey|access[_-]?key[_-]?id|access[_-]?key|access[_-]?token|auth[_-]?token|token|secret|credential|password|hmac|goog[_-]?access[_-]?id|google[_-]?access[_-]?id)|(?:sv|ss|sr|sp|st|se|srt|spr|skoid|sktid|policy|key|auth))=[^\s"'<>`)#&\[\]]{8,}[^\s"'<>`)#]*/gi, replace: '$1[REDACTED_QUERY]' },
+  // credential intact.
+  { pattern: /([?#])(?:[^\s"'<>`)#&?]*&)*?(?:[A-Za-z0-9_.%-]*(?:signature|sig|api[_-]?key|apikey|access[_-]?key[_-]?id|access[_-]?key|access[_-]?token|auth[_-]?token|token|secret|credential|password|hmac|goog[_-]?access[_-]?id|google[_-]?access[_-]?id)|(?:sv|ss|sr|sp|st|se|srt|spr|skoid|sktid|policy|key|auth))=[^\s"'<>`)#&\[\]]{8,}[^\s"'<>`)#]*/gi, replace: '$1[REDACTED_QUERY]' },
   // Asana PATs: `1/<gid>:<hex>` and `2/<gid>/<gid>:<hex>`. The `:` + long hex is
   // the low-false-positive anchor (a bare fraction/date never matches).
   { pattern: /\b[0-2]\/\d{6,}(?:\/\d{6,})?:[0-9a-f]{24,}\b/gi, replace: '[REDACTED_ASANA_TOKEN]' },
@@ -55,7 +54,7 @@ const RULES: Rule[] = [
   { pattern: /\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*/gi, replace: 'Bearer [REDACTED_TOKEN]' },
   // A long value assigned to a secret-ish key name — keep the key, mask the value.
   {
-    pattern: /\b([A-Za-z0-9_.-]*(?:authorization|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|refresh[_-]?token|bearer[_-]?token|token|secret|client[_-]?secret|private[_-]?key|password|passwd|pwd))(["']?\s*[:=]\s*["']?)([A-Za-z0-9._\-+/]{12,}={0,2})/gi,
+    pattern: /\b([A-Za-z0-9_]*(?:authorization|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|refresh[_-]?token|bearer[_-]?token|token|secret|client[_-]?secret|private[_-]?key|password|passwd|pwd))(["']?\s*[:=]\s*["']?)([A-Za-z0-9._\-+/]{12,}={0,2})/gi,
     replace: (_m: string, key: string, delim: string) => `${key}${delim}[REDACTED]`,
   },
 ];
