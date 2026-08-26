@@ -36,7 +36,7 @@ const RULES: Rule[] = [
   // scheme: a client reports a connection failure as a bare path with the
   // credential intact. Full reasoning lives beside the copy in the allegiance
   // repo's session-archival-daemon/src/redact.ts.
-  { pattern: /([?#])(?:[^\s"'<>`)#&]*&)*?(?:[A-Za-z0-9_.%-]*(?:signature|sig|api[_-]?key|apikey|access[_-]?key[_-]?id|access[_-]?key|access[_-]?token|auth[_-]?token|token|secret|credential|password|hmac|goog[_-]?access[_-]?id|google[_-]?access[_-]?id)|(?:sv|ss|sr|sp|st|se|si|srt|spr|skoid|sktid|policy|key|auth))=[^\s"'<>`)#&\[\]]{8,}[^\s"'<>`)#]*/gi, replace: '$1[REDACTED_QUERY]' },
+  { pattern: /([?#])(?:[^\s"'<>`)#&]*&)*?(?:[A-Za-z0-9_.%-]*(?:signature|sig|api[_-]?key|apikey|access[_-]?key[_-]?id|access[_-]?key|access[_-]?token|auth[_-]?token|token|secret|credential|password|hmac|goog[_-]?access[_-]?id|google[_-]?access[_-]?id)|(?:sv|ss|sr|sp|st|se|srt|spr|skoid|sktid|policy|key|auth))=[^\s"'<>`)#&\[\]]{8,}[^\s"'<>`)#]*/gi, replace: '$1[REDACTED_QUERY]' },
   // Asana PATs: `1/<gid>:<hex>` and `2/<gid>/<gid>:<hex>`. The `:` + long hex is
   // the low-false-positive anchor (a bare fraction/date never matches).
   { pattern: /\b[0-2]\/\d{6,}(?:\/\d{6,})?:[0-9a-f]{24,}\b/gi, replace: '[REDACTED_ASANA_TOKEN]' },
