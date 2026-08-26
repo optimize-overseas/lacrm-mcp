@@ -28,6 +28,15 @@ interface Rule {
 const RULES: Rule[] = [
   // PEM private-key blocks (multi-line) — mask the whole block.
   { pattern: /-----BEGIN[ A-Z]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z]*PRIVATE KEY-----/g, replace: '[REDACTED_PRIVATE_KEY]' },
+  // Credential-bearing URL query/fragment - the whole query is dropped, scheme,
+  // host and path survive. A signed asset URL (`?...&signature=<sig>`) is a
+  // bearer credential in URL clothing, and some upstreams carry a PERMANENT
+  // secret the same way (`?api_key=<key>`). Must stay SECOND (after PEM) so no
+  // later rule half-masks a value inside a query first. Not anchored on a
+  // scheme: a client reports a connection failure as a bare path with the
+  // credential intact. Full reasoning lives beside the copy in the allegiance
+  // repo's session-archival-daemon/src/redact.ts.
+  { pattern: /([?#])(?:[^\s"'<>`)#&]*&)*?[A-Za-z0-9_.%-]*(?:signature|sig|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|token|secret|credential|password)=[^\s"'<>`)#&\[\]]{8,}[^\s"'<>`)#]*/gi, replace: '$1[REDACTED_QUERY]' },
   // Asana PATs: `1/<gid>:<hex>` and `2/<gid>/<gid>:<hex>`. The `:` + long hex is
   // the low-false-positive anchor (a bare fraction/date never matches).
   { pattern: /\b[0-2]\/\d{6,}(?:\/\d{6,})?:[0-9a-f]{24,}\b/gi, replace: '[REDACTED_ASANA_TOKEN]' },
