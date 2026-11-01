@@ -42,7 +42,8 @@ for (const register of [
   register(fakeServer as never);
 }
 
-// The twelve list tools that summarize a page, with the least each needs to run.
+// The list tools that summarize a page of a PAGINATED LACRM function, with the
+// least each needs to run.
 const LIST_TOOLS: Array<[string, Record<string, unknown>]> = [
   ['search_tasks', { start_date: '2026-01-01', end_date: '2026-12-31' }],
   ['get_tasks_attached_to_contact', { contact_id: '1' }],
@@ -53,8 +54,15 @@ const LIST_TOOLS: Array<[string, Record<string, unknown>]> = [
   ['get_contacts_in_group', { group_name: 'Priority' }],
   ['search_events', { start_date: '2026-01-01', end_date: '2026-12-31' }],
   ['get_events_attached_to_contact', { contact_id: '1' }],
-  ['get_files_attached_to_contact', { contact_id: '1' }],
   ['search_pipeline_items', { pipeline_id: '9' }],
+];
+
+// LACRM does not paginate these two (its function reference lists no
+// MaxNumberOfResults/Page and answers "all files" / "all pipeline items"), so
+// whatever comes back is the whole answer: only LACRM itself saying
+// HasMoreResults: true could mean more.
+const UNPAGINATED_TOOLS: Array<[string, Record<string, unknown>]> = [
+  ['get_files_attached_to_contact', { contact_id: '1' }],
   ['get_pipeline_items_attached_to_contact', { contact_id: '1' }],
 ];
 
@@ -80,7 +88,21 @@ describe('list tools has_more_results', () => {
     expect(s.has_more_results).toBe(true);
   });
 
-  it.each(LIST_TOOLS)('%s: a short bare-array page says no more', async (tool, args) => {
+  it.each(UNPAGINATED_TOOLS)('%s: a 500-item bare answer is the whole list, not "more"', async (tool, args) => {
+    answer = () => page(500);
+    const s = await summary(tool, args);
+    expect(s.page_count).toBe(500);
+    expect(s.has_more_results).toBe(false);
+  });
+
+  it.each(UNPAGINATED_TOOLS)('%s: still follows LACRM if it says HasMoreResults', async (tool, args) => {
+    answer = () => ({ HasMoreResults: true, Results: page(3) });
+    expect((await summary(tool, args)).has_more_results).toBe(true);
+    answer = () => ({ HasMoreResults: false, Results: page(3) });
+    expect((await summary(tool, args)).has_more_results).toBe(false);
+  });
+
+  it.each([...LIST_TOOLS, ...UNPAGINATED_TOOLS])('%s: a short bare-array page says no more', async (tool, args) => {
     answer = () => page(12);
     const s = await summary(tool, args);
     expect(s.page_count).toBe(12);
@@ -92,6 +114,13 @@ describe('list tools has_more_results', () => {
     expect((await summary(tool, args)).has_more_results).toBe(true);
     answer = () => ({ HasMoreResults: false, Results: page(500) });
     expect((await summary(tool, args)).has_more_results).toBe(false);
+  });
+
+  it('a flagless answer is full at LACRM\'s 10,000-per-page cap, whatever max_results asked for', async () => {
+    answer = (params) => page(Math.min(Number(params.MaxNumberOfResults ?? 500), 10000));
+    const s = await summary('search_notes', { max_results: 20000 });
+    expect(s.page_count).toBe(10000);
+    expect(s.has_more_results).toBe(true);
   });
 
   it('honours a max_results page size for a bare-array page', async () => {

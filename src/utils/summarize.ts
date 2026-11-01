@@ -50,6 +50,19 @@ function getNestedValue(obj: unknown, path: string): string {
 export const LACRM_DEFAULT_PAGE_SIZE = 500;
 
 /**
+ * The most items LACRM serves on one page, whatever `MaxNumberOfResults` asks
+ * for ("max 10,000" on every paginated function).
+ */
+export const LACRM_MAX_PAGE_SIZE = 10000;
+
+/**
+ * Pass as `pageSize` for a LACRM function that is NOT paginated (its reference
+ * lists no `MaxNumberOfResults`/`Page` and it answers with every item at once,
+ * e.g. `GetFilesAttachedToContact`): a bare answer is then the whole list.
+ */
+export const NOT_PAGINATED = null;
+
+/**
  * Whether more results exist beyond this page of a LACRM list call, for
  * `summarizeResults`' `has_more_results`.
  *
@@ -57,13 +70,16 @@ export const LACRM_DEFAULT_PAGE_SIZE = 500;
  * answer: true on a non-last page, false on the last. When that boolean is
  * present it decides, because it is the API saying so. Some functions answer
  * with a bare array (or leave the flag out); then nothing says whether the
- * list ended, so a full page (as many items as were asked for) reads true and
- * only a short page - which LACRM's fixed-size pages make the last one - reads
- * false.
+ * list ended, so a full page reads true and only a short page - which LACRM's
+ * fixed-size pages make the last one - reads false. A full page is what LACRM
+ * serves, not what was asked for: the size asked (LACRM's default 500 when
+ * none was) capped at its 10,000 per page. A function that is not paginated
+ * (`NOT_PAGINATED`) answers with everything, so without the flag it reads false.
  *
  * @param result - The raw answer from `client.call` (wrapped object or bare array)
  * @param items - The items taken from that answer
- * @param pageSize - The `MaxNumberOfResults` sent (LACRM's default 500 when none was)
+ * @param pageSize - The `MaxNumberOfResults` sent (LACRM's default when none was),
+ *   or `NOT_PAGINATED`
  */
 export function pageHasMore(
   result: unknown,
@@ -74,8 +90,10 @@ export function pageHasMore(
     const flag = (result as Record<string, unknown>).HasMoreResults;
     if (typeof flag === 'boolean') return flag;
   }
-  const size = Number(pageSize);
-  return items.length >= (Number.isFinite(size) && size > 0 ? size : LACRM_DEFAULT_PAGE_SIZE);
+  if (pageSize === NOT_PAGINATED) return false;
+  const asked = Number(pageSize);
+  const size = Number.isFinite(asked) && asked > 0 ? asked : LACRM_DEFAULT_PAGE_SIZE;
+  return items.length >= Math.min(size, LACRM_MAX_PAGE_SIZE);
 }
 
 /**

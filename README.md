@@ -157,7 +157,9 @@ The `summary` object always includes:
 - `page_count` -- the number of items on **this page only** (not the total across all pages)
 - `has_more_results` -- whether more matching items exist beyond this page (v1.9.4: every list tool, `search_contacts` included).
   LACRM's own `HasMoreResults` flag decides whenever its answer carries one.
-  When an answer has no flag (a bare array), a full page (as many items as were asked for, LACRM's default 500 when `max_results` is not set) reads `true`, because nothing says the list ended; only a short page reads `false`.
+  When an answer has no flag (a bare array), a full page reads `true`, because nothing says the list ended; only a short page reads `false`.
+  A full page is as many items as the tool asked LACRM for, capped at LACRM's 10,000 per page: the tool's `max_results`, whose default is 25 for `search_contacts` and LACRM's own 500 for the other list tools.
+  `get_files_attached_to_contact` and `get_pipeline_items_attached_to_contact` read LACRM functions that are not paginated (they answer with every item at once), so their `has_more_results` is `false` unless LACRM itself says more.
 - `note` (when `has_more_results` is true) -- a reminder that `page_count` is partial and `count_only=true` should be used for accurate totals
 
 **Important:** When `has_more_results` is `true`, the `page_count` value is NOT the total number of matching results. Use `count_only=true` for accurate totals across all pages.
