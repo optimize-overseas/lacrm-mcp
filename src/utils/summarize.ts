@@ -44,6 +44,41 @@ function getNestedValue(obj: unknown, path: string): string {
 }
 
 /**
+ * LACRM's page size when a list call sends no `MaxNumberOfResults`
+ * (documented as "default 500, max 10,000" on every paginated function).
+ */
+export const LACRM_DEFAULT_PAGE_SIZE = 500;
+
+/**
+ * Whether more results exist beyond this page of a LACRM list call, for
+ * `summarizeResults`' `has_more_results`.
+ *
+ * LACRM signals it with `HasMoreResults` on a wrapped `{ HasMoreResults, Results }`
+ * answer: true on a non-last page, false on the last. When that boolean is
+ * present it decides, because it is the API saying so. Some functions answer
+ * with a bare array (or leave the flag out); then nothing says whether the
+ * list ended, so a full page (as many items as were asked for) reads true and
+ * only a short page - which LACRM's fixed-size pages make the last one - reads
+ * false.
+ *
+ * @param result - The raw answer from `client.call` (wrapped object or bare array)
+ * @param items - The items taken from that answer
+ * @param pageSize - The `MaxNumberOfResults` sent (LACRM's default 500 when none was)
+ */
+export function pageHasMore(
+  result: unknown,
+  items: unknown[],
+  pageSize: unknown = LACRM_DEFAULT_PAGE_SIZE
+): boolean {
+  if (result && typeof result === 'object' && !Array.isArray(result)) {
+    const flag = (result as Record<string, unknown>).HasMoreResults;
+    if (typeof flag === 'boolean') return flag;
+  }
+  const size = Number(pageSize);
+  return items.length >= (Number.isFinite(size) && size > 0 ? size : LACRM_DEFAULT_PAGE_SIZE);
+}
+
+/**
  * Wrap list results with a machine-counted summary header.
  *
  * @param items - The array of result items

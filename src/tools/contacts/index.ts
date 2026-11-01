@@ -19,7 +19,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
-import { summarizeResults } from '../../utils/summarize.js';
+import { summarizeResults, pageHasMore } from '../../utils/summarize.js';
 import { resolveCustomFieldNames } from '../../utils/resolve-names.js';
 import { countAll } from '../../utils/count-all.js';
 
@@ -488,10 +488,12 @@ Use get_custom_fields to learn available custom field names for advanced filteri
           };
         }
 
-        const result = await client.call('GetContacts', params) as { Results?: Array<{ ContactId: string;[key: string]: unknown }> };
+        type Contact = { ContactId: string;[key: string]: unknown };
+        const result = await client.call('GetContacts', params) as { Results?: Contact[]; HasMoreResults?: boolean } | Contact[];
+        const contacts = Array.isArray(result) ? result : (result.Results || []);
 
         // Put ContactUrl first in each contact so it's visible even if response is truncated
-        const contactsArray = (result.Results || []).map(contact => {
+        const contactsArray = contacts.map(contact => {
           if (contact.ContactId) {
             const { ContactId, ...rest } = contact;
             return {
@@ -506,7 +508,7 @@ Use get_custom_fields to learn available custom field names for advanced filteri
         return {
           content: [{
             type: 'text' as const,
-            text: summarizeResults(contactsArray, false, [
+            text: summarizeResults(contactsArray, pageHasMore(result, contacts, params.MaxNumberOfResults), [
               { label: 'by_assigned_to', path: 'AssignedTo' }
             ])
           }]

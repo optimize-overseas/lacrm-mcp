@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getClient } from '../../client.js';
 import { formatErrorForLLM } from '../../utils/errors.js';
-import { summarizeResults } from '../../utils/summarize.js';
+import { summarizeResults, pageHasMore } from '../../utils/summarize.js';
 import { resolveStatusNames, resolveUserNames, resolveCustomFieldNames } from '../../utils/resolve-names.js';
 import { countAll } from '../../utils/count-all.js';
 
@@ -376,7 +376,7 @@ Use count_only=true for accurate counts on large datasets without returning the 
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetPipelineItems', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
-        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
+        const hasMore = pageHasMore(result, items, params.MaxNumberOfResults);
         return {
           content: [{
             type: 'text' as const,
@@ -431,7 +431,7 @@ Use count_only=true for accurate counts without returning the full result set.`,
 
         const result = await client.call<{ Results?: unknown[]; HasMoreResults?: boolean }>('GetPipelineItemsAttachedToContact', params);
         const items = Array.isArray(result) ? result : (result.Results || []);
-        const hasMore = !Array.isArray(result) && result.HasMoreResults === true;
+        const hasMore = pageHasMore(result, items, params.MaxNumberOfResults);
         return {
           content: [{
             type: 'text' as const,

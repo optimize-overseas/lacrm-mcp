@@ -155,7 +155,9 @@ All list-returning tools wrap their results in a structured `{summary, results}`
 
 The `summary` object always includes:
 - `page_count` -- the number of items on **this page only** (not the total across all pages)
-- `has_more_results` -- whether the API has additional pages beyond this response
+- `has_more_results` -- whether more matching items exist beyond this page (v1.9.4: every list tool, `search_contacts` included).
+  LACRM's own `HasMoreResults` flag decides whenever its answer carries one.
+  When an answer has no flag (a bare array), a full page (as many items as were asked for, LACRM's default 500 when `max_results` is not set) reads `true`, because nothing says the list ended; only a short page reads `false`.
 - `note` (when `has_more_results` is true) -- a reminder that `page_count` is partial and `count_only=true` should be used for accurate totals
 
 **Important:** When `has_more_results` is `true`, the `page_count` value is NOT the total number of matching results. Use `count_only=true` for accurate totals across all pages.
@@ -256,6 +258,7 @@ All search and list tools support a `count_only` parameter. When set to `true`, 
 ```json
 {
   "total": 47,
+  "complete": true,
   "breakdowns": {
     "by_status": {
       "Active": 30,
@@ -268,8 +271,10 @@ All search and list tools support a `count_only` parameter. When set to `true`, 
 
 When `count_only` is `true`:
 - The tool paginates through all available pages automatically
-- No `results` array is returned -- only `total` and `breakdowns`
+- No `results` array is returned -- only `total`, `complete` and `breakdowns`
 - A safety cap of 100 pages prevents runaway pagination
+- `complete` (v1.9.4) is `true` only when the walk reached the last page.
+  When the cap (or an empty page the API still says has more behind it) stops it first, `complete` is `false`, `total` is a lower bound, and a `note` says so.
 
 ## Flat-String Shortcuts (v1.3.0)
 

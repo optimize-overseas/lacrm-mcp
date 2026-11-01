@@ -10,6 +10,7 @@
  */
 
 import type { LacrmClient } from '../client.js';
+import { pageHasMore } from './summarize.js';
 
 /**
  * Configuration for a single breakdown dimension.
@@ -53,18 +54,27 @@ function getNestedValue(obj: unknown, path: string): string {
  * @param apiFunction - API function name (e.g., "GetPipelineItems")
  * @param baseParams - Base parameters for the API call (pagination params will be added)
  * @param breakdowns - Which fields to count by (empty array = total only)
- * @returns Object with total count and breakdown counts
+ * @returns Object with the total count, whether that total is complete, and
+ *   breakdown counts. `complete` is false (with a `note`) when the walk stopped
+ *   while LACRM may still have more - the page cap, or an empty page LACRM
+ *   still says has more behind it - so `total` is then a lower bound.
  */
 export async function countAll(
   client: LacrmClient,
   apiFunction: string,
   baseParams: Record<string, unknown>,
   breakdowns: BreakdownConfig[]
-): Promise<{ total: number; breakdowns: Record<string, Record<string, number>> }> {
+): Promise<{
+  total: number;
+  complete: boolean;
+  note?: string;
+  breakdowns: Record<string, Record<string, number>>;
+}> {
   const MAX_PAGES = 100;
   const PAGE_SIZE = 10000;
 
   let total = 0;
+  let complete = false;
   const breakdownCounts: Record<string, Record<string, number>> = {};
   for (const bd of breakdowns) {
     breakdownCounts[bd.label] = {};
@@ -86,14 +96,29 @@ export async function countAll(
     }
 
     // Determine if more pages exist. The API normally returns
-    // { Results: [...], HasMoreResults: bool }, but some endpoints
-    // return a plain array. For plain arrays, assume more pages
-    // exist if the current page is full (items.length === PAGE_SIZE).
-    const hasMore = Array.isArray(result)
-      ? items.length >= PAGE_SIZE
-      : result.HasMoreResults === true;
-    if (!hasMore || items.length === 0) break;
+    // { Results: [...], HasMoreResults: bool }, and that flag decides; a
+    // plain array (some endpoints) or a missing flag counts a full page as
+    // having more behind it.
+    const hasMore = pageHasMore(result, items, PAGE_SIZE);
+    if (!hasMore) {
+      complete = true;
+      break;
+    }
+    // An empty page LACRM still says has more behind it: stop (no progress),
+    // but the total cannot be called complete.
+    if (items.length === 0) break;
   }
 
-  return { total, breakdowns: breakdownCounts };
+  if (complete) {
+    return { total, complete, breakdowns: breakdownCounts };
+  }
+  return {
+    total,
+    complete,
+    note:
+      `Counting stopped before the end of the list (after ${MAX_PAGES} pages of ${PAGE_SIZE}, or on an empty page ` +
+      `the CRM still said had more behind it): there are at least ${total} matching items, not exactly ${total}. ` +
+      'Narrow the filters and count again for an exact total.',
+    breakdowns: breakdownCounts,
+  };
 }
