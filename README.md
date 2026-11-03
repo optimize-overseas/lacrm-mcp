@@ -617,7 +617,7 @@ This ensures that even aggressive AI usage won't overwhelm LACRM's servers.
 
 ### ID Parameter Sanitization
 
-The server includes defense-in-depth sanitization for all ID parameters. LLMs sometimes over-quote values, passing `"\"86441\""` (a string with embedded literal quotes) instead of the clean string `"86441"`. The LACRM API rejects values with embedded quotes as invalid UIDs.
+The server includes defense-in-depth sanitization for all ID parameters. LLMs sometimes over-quote values, passing `"\"12345\""` (a string with embedded literal quotes) instead of the clean string `"12345"`. The LACRM API rejects values with embedded quotes as invalid UIDs.
 
 To guard against this, the client automatically strips surrounding single and double quote characters from any parameter whose key ends with:
 

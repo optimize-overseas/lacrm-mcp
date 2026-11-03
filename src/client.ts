@@ -131,8 +131,8 @@ export class LacrmClient {
    * Strip surrounding quote characters from ID parameters.
    *
    * Defense-in-depth against LLMs that over-quote ID values.
-   * For example, an AI may pass `"\"86441\""` (a string containing literal
-   * quote characters) instead of `"86441"` (a clean string). The LACRM API
+   * For example, an AI may pass `"\"12345\""` (a string containing literal
+   * quote characters) instead of `"12345"` (a clean string). The LACRM API
    * rejects values with embedded quotes as invalid UIDs.
    *
    * Only applies to parameters whose key ends with "Id" (single ID),

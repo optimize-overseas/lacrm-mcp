@@ -33,14 +33,14 @@ describe('debugParams — default is keys-only (no PII/secret values)', () => {
   afterEach(() => { if (savedFlag === undefined) delete process.env.LACRM_DEBUG_PARAMS; else process.env.LACRM_DEBUG_PARAMS = savedFlag; });
 
   it('returns only the parameter KEYS, never the values, by default', () => {
-    const params = { ContactId: '86441', Name: 'Jane Q. Public', Notes: 'private client note' };
+    const params = { ContactId: '12345', Name: 'Jane Q. Public', Notes: 'private client note' };
     const out = debugParams(params);
     const s = JSON.stringify(out);
     expect(s).toContain('ContactId');
     expect(s).toContain('Notes');
     expect(s).not.toContain('Jane Q. Public');
     expect(s).not.toContain('private client note');
-    expect(s).not.toContain('86441');
+    expect(s).not.toContain('12345');
   });
 });
 

@@ -21,7 +21,7 @@
  * Unique identifier type used by LACRM API.
  * All IDs in LACRM are transmitted as strings (often numeric strings).
  *
- * @example "3971579198060101921194362986880"
+ * @example "9876543210987654321098765432109"
  */
 export type Uid = string;
 
@@ -106,7 +106,7 @@ export type CustomFieldValue = string | number | boolean | string[] | null;
  *
  * @example
  * {
- *   "Custom_3971579198060101921194362986880": "Gold",
+ *   "Custom_9876543210987654321098765432109": "Gold",
  *   "Custom_1234567890123456789012345678901": 50000
  * }
  */
