@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     // Create MCP server instance with server metadata
     const server = new McpServer({
       name: 'lacrm-mcp',
-      version: '1.9.6'
+      version: '2.0.0'
     });
 
     // Register all 87 tools across discovery, contacts, bulk CSV, activities, settings, etc.
