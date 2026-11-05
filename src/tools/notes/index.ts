@@ -173,7 +173,7 @@ RETURNS FULL DATA: Each result includes all note fields (content, timestamps, li
 
 Supports filtering by date range, user, and specific contact.
 Use count_only=true for accurate counts on large datasets without returning the full result set.`,
-      inputSchema: {
+      inputSchema: z.object({
         date_start: z.string().optional().describe('Return notes on or after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return notes on or before this date (ISO 8601)'),
         user_filter: z.array(z.string()).optional().describe('Filter by user IDs who created notes'),
@@ -182,7 +182,7 @@ Use count_only=true for accurate counts on large datasets without returning the 
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
-      }
+      }).strict()
     },
     async (args) => {
       try {

@@ -117,7 +117,7 @@ Use this to find emails by date range, user, or contact.
 RETURNS FULL DATA: Each result includes all email fields (sender, recipients, subject, body, timestamps, etc.) - no need to call get_email afterward.
 
 Use count_only=true for accurate counts on large datasets without returning the full result set.`,
-      inputSchema: {
+      inputSchema: z.object({
         date_start: z.string().optional().describe('Return emails after this date (ISO 8601)'),
         date_end: z.string().optional().describe('Return emails before this date (ISO 8601)'),
         user_filter: z.array(z.string()).optional().describe('Filter by user IDs'),
@@ -127,7 +127,7 @@ Use count_only=true for accurate counts on large datasets without returning the 
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
-      }
+      }).strict()
     },
     async (args) => {
       try {

@@ -289,7 +289,7 @@ Required: pipeline_id (use get_pipelines to find valid IDs).
 Supports advanced filters for custom fields.
 Supports name-based filters: use status_name_filter or user_name_filter instead of IDs.
 Use count_only=true for accurate counts on large datasets without returning the full result set.`,
-      inputSchema: {
+      inputSchema: z.object({
         pipeline_id: z.string().describe('Pipeline ID to search within'),
         user_filter: z.array(z.string()).optional().describe('Filter by creator user IDs. Mutually exclusive with user_name_filter.'),
         user_name_filter: z.array(z.string()).optional().describe('Filter by user names (case-insensitive, auto-resolved to IDs). Mutually exclusive with user_filter.'),
@@ -329,8 +329,8 @@ Use count_only=true for accurate counts on large datasets without returning the 
           // Optional, as it has always been (IsEmpty/IsNotEmpty need no value): zod 3 left a
           // z.unknown() key out of the JSON schema's `required` by itself, zod 4 does not.
           Value: z.unknown().optional().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, null for IsEmpty/IsNotEmpty')
-        })).optional().describe('Advanced field filters. Call get_pipeline_item_schema first to see available field names.')
-      }
+        }).strict()).optional().describe('Advanced field filters. Call get_pipeline_item_schema first to see available field names.')
+      }).strict()
     },
     async (args) => {
       try {

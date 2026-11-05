@@ -278,6 +278,23 @@ When `count_only` is `true`:
 - `complete` (v1.9.4) is `true` only when the walk reached the last page.
   When the cap (or an empty page the API still says has more behind it) stops it first, `complete` is `false`, `total` is a lower bound, and a `note` says so.
 
+## Strict Search Input (v2.0.0)
+
+**Breaking in v2.0.0.** Calls that 1.x accepted are now refused: any unknown argument to a search tool, and a `search_contacts` call with no filter (pass `allow_unfiltered: true` to keep the old behaviour).
+
+`search_contacts`, `search_pipeline_items`, `search_notes`, `search_tasks`, `search_events` and `search_emails` accept only the arguments their schemas list, and refuse anything else instead of ignoring it.
+Before v2.0.0 the MCP SDK silently dropped an unknown argument, so a call such as `{"name": "Smith"}` ran as a search with no filter at all: a read of every record in the account, which is slow and can time out on a large account (with `count_only`, a walk of every page).
+
+- **Unknown arguments are refused** by all six tools, at the top level and (for `search_contacts` and `search_pipeline_items`) inside an `advanced_filters` item. The error names each unknown key; `search_contacts` also lists the accepted ones. The advertised input schemas say `additionalProperties: false`.
+- **`search_contacts` only: a filter is required**: at least one of a non-blank `search_terms`, a non-empty `advanced_filters`, or an `owner_filter` with a non-blank user ID. A search with none is refused before any API call.
+- **`search_contacts` only: `allow_unfiltered: true`** is the explicit opt-in for a search with no filter, when every record really is what you want. It is not sent to the API.
+
+For a person's name, `advanced_filters` on `LastName` / `FirstName` / `FullName` with `Contains` matches the name fields only; `search_terms` matches the text anywhere in a record.
+
+```json
+{"advanced_filters": [{"Name": "LastName", "Operation": "Contains", "Value": "Smith"}]}
+```
+
 ## Flat-String Shortcuts (v1.3.0)
 
 `create_contact` and `edit_contact` accept simplified string parameters for common single-value fields:
@@ -395,7 +412,7 @@ The silence threshold is deliberately generous (at least 15 minutes, scaled up f
 | `delete_contact` | Delete a contact |
 | `get_contact` | Get a contact by ID |
 | `get_contacts_by_ids` | Get multiple contacts by IDs (up to 200) |
-| `search_contacts` | Search contacts by name, email, phone, or custom fields |
+| `search_contacts` | Search contacts by name, email, phone, or custom fields. Needs a filter, and refuses unknown arguments (v2.0.0 - see [Strict search input](#strict-search-input-v200)) |
 
 ### Bulk CSV Tools (5)
 

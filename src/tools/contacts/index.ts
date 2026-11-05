@@ -48,6 +48,88 @@ const websiteSchema = z.object({
   Type: z.string().optional()
 });
 
+// search_contacts input. Defined at module level so the unknown-key message
+// below can name the accepted arguments from the shape itself.
+const searchContactsShape = {
+  search_terms: z.string().optional().describe('Text to search across all fields'),
+  record_type: z.enum(['Contacts', 'Companies']).optional().describe('Filter by record type'),
+  owner_filter: z.array(z.string()).optional().describe('Filter by assigned user IDs'),
+  sort_by: z.enum(['Relevance', 'FirstName', 'LastName', 'CompanyName', 'DateCreated', 'LastUpdate']).optional(),
+  sort_direction: z.enum(['Ascending', 'Descending']).optional(),
+  max_results: z.number().optional().describe('Max results per page (default 25, max 10000). Keep low for name searches.'),
+  page: z.number().optional().describe('Page number for pagination'),
+  count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.'),
+  advanced_filters: z.array(z.object({
+    Name: z.string().describe('Field name to filter on. Standard fields available on all accounts: Group, FullName, FirstName, MiddleName, LastName, CompanyName, CompanyId, Salutation, Suffix, DateEntered, DateUpdated, Email, AddressStreet, AddressCity, AddressState, AddressZip, AddressCountry, Phone, Website, Title, BackgroundInfo, Industry, Birthday, Age, NumEmp, Cal, Pipeline. Custom fields use Custom_<id> format — call get_custom_fields to discover them.'),
+    Operation: z.enum([
+      // Text field operations
+      'Contains',
+      'DoesNotContain',
+      'IsExactly',
+      'IsNot',
+      'IsEmpty',
+      'IsNotEmpty',
+      // Date field operations
+      'IsExactly',
+      'IsBetween',
+      'IsBefore',
+      'IsAfter',
+      // Numeric field operations
+      'IsExactly',
+      'IsGreaterThan',
+      'IsLessThan',
+      'Contains',
+      'IsEmpty',
+      'IsNotEmpty',
+      // Group field operations
+      'IsNotInAnyGroup',
+      'IsInGroupList',
+      'IsNotInGroupList'
+    ]).describe(`Filter operation. Valid operations depend on field type:
+- Text fields (FullName, Email, Phone, AddressState, AddressCity, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
+- Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter
+- Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, Contains, IsEmpty, IsNotEmpty
+- Group field: IsNotInAnyGroup, IsInGroupList, IsNotInGroupList`),
+    // Optional, as it has always been (IsEmpty/IsNotEmpty need no value): zod 3 left a
+    // z.unknown() key out of the JSON schema's `required` by itself, zod 4 does not.
+    Value: z.unknown().optional().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, Array of UIDs for group list ops, null for IsEmpty/IsNotEmpty')
+  // strict: a misspelt key (e.g. "value") would otherwise be dropped and the
+  // filter sent with no Value at all.
+  }).strict()).optional().describe('Advanced field filters: a LIST of {Name, Operation, Value} objects (no other keys). Call get_contact_schema (for contacts) or get_company_schema (for companies) first to see available field names.'),
+  allow_unfiltered: z.boolean().optional().describe('Set true to search with no search_terms, advanced_filters or owner_filter, i.e. to read every record in the account. Without it such a search is refused.')
+};
+
+const SEARCH_CONTACTS_ARGS = Object.keys(searchContactsShape);
+
+/**
+ * The SDK wraps a raw zod shape in a NON-strict object, which silently STRIPS
+ * an unknown argument: `{"name":"Smith"}` reached LACRM as a search with no
+ * filter at all, i.e. a read of the whole account. `.strict()` refuses it
+ * instead, and this map makes that refusal name the key and the way out.
+ */
+const searchContactsError = (issue: { code: string; keys?: string[] }): string | undefined =>
+  issue.code === 'unrecognized_keys'
+    ? `Unknown argument(s) for search_contacts: ${(issue.keys ?? []).join(', ')}. ` +
+      `Accepted: ${SEARCH_CONTACTS_ARGS.join(', ')}. ` +
+      'To search by name use search_terms, or advanced_filters with FullName, FirstName or LastName.'
+    : undefined;
+
+const searchContactsInput = z.object(searchContactsShape, { error: searchContactsError }).strict();
+
+/** True when the search narrows the account at all. */
+function hasSearchFilter(args: z.infer<typeof searchContactsInput>): boolean {
+  return (typeof args.search_terms === 'string' && args.search_terms.trim() !== '') ||
+    (Array.isArray(args.advanced_filters) && args.advanced_filters.length > 0) ||
+    (Array.isArray(args.owner_filter) && args.owner_filter.some((id) => id.trim() !== ''));
+}
+
+const UNFILTERED_SEARCH_REFUSAL =
+  'search_contacts was not run: it was given no filter (search_terms, advanced_filters or owner_filter), ' +
+  'so it would search every record in the account, which is slow and can time out on a large account ' +
+  '(with count_only it pages through all of them). Add a filter - for a name, search_terms, or ' +
+  'advanced_filters with FullName, FirstName or LastName - or pass allow_unfiltered: true if every record ' +
+  'is really what you want.';
+
 export function registerContactTools(server: McpServer): void {
   // create_contact
   server.registerTool(
@@ -415,56 +497,26 @@ Supports:
 - Advanced filters on standard and custom fields
 
 IMPORTANT: For geographic searches (by state, city, zip), use advanced_filters with the address fields (AddressState, AddressCity, AddressZip, etc.) instead of search_terms. Free-text search_terms scans all fields and can be very slow on broad terms.
+For a person's name, advanced_filters on LastName / FirstName / FullName with Contains matches the name fields only; search_terms also matches the text anywhere else in a record.
+
+A FILTER IS REQUIRED: at least one of search_terms, advanced_filters or owner_filter. A search with none would search every record in the account (slow, and on a large account it can time out); pass allow_unfiltered=true only when every record is really what you want.
+Only the arguments listed in this schema are accepted. An unknown argument (for example "name") is refused, never ignored.
 
 Use count_only=true for accurate counts on large datasets without returning the full result set.
 Use get_custom_fields to learn available custom field names for advanced filtering.`,
-      inputSchema: {
-        search_terms: z.string().optional().describe('Text to search across all fields'),
-        record_type: z.enum(['Contacts', 'Companies']).optional().describe('Filter by record type'),
-        owner_filter: z.array(z.string()).optional().describe('Filter by assigned user IDs'),
-        sort_by: z.enum(['Relevance', 'FirstName', 'LastName', 'CompanyName', 'DateCreated', 'LastUpdate']).optional(),
-        sort_direction: z.enum(['Ascending', 'Descending']).optional(),
-        max_results: z.number().optional().describe('Max results per page (default 25, max 10000). Keep low for name searches.'),
-        page: z.number().optional().describe('Page number for pagination'),
-        count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.'),
-        advanced_filters: z.array(z.object({
-          Name: z.string().describe('Field name to filter on. Standard fields available on all accounts: Group, FullName, FirstName, MiddleName, LastName, CompanyName, CompanyId, Salutation, Suffix, DateEntered, DateUpdated, Email, AddressStreet, AddressCity, AddressState, AddressZip, AddressCountry, Phone, Website, Title, BackgroundInfo, Industry, Birthday, Age, NumEmp, Cal, Pipeline. Custom fields use Custom_<id> format — call get_custom_fields to discover them.'),
-          Operation: z.enum([
-            // Text field operations
-            'Contains',
-            'DoesNotContain',
-            'IsExactly',
-            'IsNot',
-            'IsEmpty',
-            'IsNotEmpty',
-            // Date field operations
-            'IsExactly',
-            'IsBetween',
-            'IsBefore',
-            'IsAfter',
-            // Numeric field operations
-            'IsExactly',
-            'IsGreaterThan',
-            'IsLessThan',
-            'Contains',
-            'IsEmpty',
-            'IsNotEmpty',
-            // Group field operations
-            'IsNotInAnyGroup',
-            'IsInGroupList',
-            'IsNotInGroupList'
-          ]).describe(`Filter operation. Valid operations depend on field type:
-- Text fields (FullName, Email, Phone, AddressState, AddressCity, etc.): Contains, DoesNotContain, IsExactly, IsNot, IsEmpty, IsNotEmpty
-- Date fields (DateEntered, DateUpdated, Birthday): IsExactly, IsBetween, IsBefore, IsAfter
-- Numeric fields (Age, NumEmp): IsExactly, IsGreaterThan, IsLessThan, Contains, IsEmpty, IsNotEmpty
-- Group field: IsNotInAnyGroup, IsInGroupList, IsNotInGroupList`),
-          // Optional, as it has always been (IsEmpty/IsNotEmpty need no value): zod 3 left a
-          // z.unknown() key out of the JSON schema's `required` by itself, zod 4 does not.
-          Value: z.unknown().optional().describe('Value to filter by. Type depends on operation: Text for text ops, Date (YYYY-MM-DD) for date ops, {StartDate, EndDate} for IsBetween, Array of UIDs for group list ops, null for IsEmpty/IsNotEmpty')
-        })).optional().describe('Advanced field filters. Call get_contact_schema (for contacts) or get_company_schema (for companies) first to see available field names.')
-      }
+      inputSchema: searchContactsInput
     },
     async (args) => {
+      // An unfiltered search reads the whole account (and count_only pages
+      // through all of it). It is almost always a mistake, e.g. a filter passed
+      // under a key this tool does not have, so it is refused unless asked for.
+      if (!hasSearchFilter(args) && args.allow_unfiltered !== true) {
+        return {
+          content: [{ type: 'text' as const, text: UNFILTERED_SEARCH_REFUSAL }],
+          isError: true
+        };
+      }
+
       try {
         const client = getClient();
 

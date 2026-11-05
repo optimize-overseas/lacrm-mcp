@@ -197,7 +197,7 @@ Required: start_date, end_date.
 Supports filtering by completion status (Both, Incomplete, Complete).
 Supports name-based user filter: use user_name_filter instead of user_filter.
 Use count_only=true for accurate counts on large datasets without returning the full result set.`,
-      inputSchema: {
+      inputSchema: z.object({
         start_date: z.string().describe('Start of date range (YYYY-MM-DD)'),
         end_date: z.string().describe('End of date range (YYYY-MM-DD)'),
         user_filter: z.array(z.string()).optional().describe('Filter by user IDs. Mutually exclusive with user_name_filter.'),
@@ -208,7 +208,7 @@ Use count_only=true for accurate counts on large datasets without returning the 
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
-      }
+      }).strict()
     },
     async (args) => {
       try {

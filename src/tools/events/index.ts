@@ -223,7 +223,7 @@ Supports filtering by:
 - Specific contact
 
 Use count_only=true for accurate counts on large datasets without returning the full result set.`,
-      inputSchema: {
+      inputSchema: z.object({
         start_date: z.string().optional().describe('Start of date range (ISO 8601)'),
         end_date: z.string().optional().describe('End of date range (ISO 8601)'),
         user_filter: z.array(z.string()).optional().describe('Filter by user IDs. Mutually exclusive with user_name_filter.'),
@@ -235,7 +235,7 @@ Use count_only=true for accurate counts on large datasets without returning the 
         max_results: z.number().optional().describe('Max results (default 500, max 10000)'),
         page: z.number().optional().describe('Page number for pagination'),
         count_only: z.boolean().optional().describe('When true, auto-paginates and returns only total count and breakdowns (no results array). Use for accurate counts on large datasets.')
-      }
+      }).strict()
     },
     async (args) => {
       try {
