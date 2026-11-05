@@ -79,8 +79,8 @@ my-mcp-server/
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.22.0",
-    "zod": "^3.25.0"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22",

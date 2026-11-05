@@ -1,6 +1,6 @@
 {
   "name": "lacrm-mcp",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "MCP server for Less Annoying CRM - 87 tools for contacts, pipelines, tasks, events, bulk CSV, and more",
   "type": "module",
   "bin": {
@@ -18,10 +18,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@optimizeoverseas/async-task-core": "file:vendor/optimizeoverseas-async-task-core-0.2.0.tgz",
-    "csv-parse": "^5.5.6",
-    "zod": "^3.25.0"
+    "csv-parse": "^7.0.3",
+    "zod": "^4.6.7"
   },
   "bundleDependencies": [
     "@optimizeoverseas/async-task-core"
@@ -29,7 +29,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "typescript": "^5.3.3",
-    "vitest": "^3.0.0"
+    "vitest": "^5.0.5"
   },
   "keywords": [
     "mcp",
